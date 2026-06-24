@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Servicio de Base de Datos
+  db:
+    image: postgres:15-alpine
+    container_name: inventario_db_container
+    # Reiniciar el contenedor automáticamente a menos que se detenga manualmente
+    restart: unless-stopped
+    # Variables de entorno para inicializar la base de datos local
+    environment:
+      - POSTGRES_USER=inventario_user
+      - POSTGRES_PASSWORD=mi_password_secreto
+      - POSTGRES_DB=inventario_db
+    # Mapeo de puertos por si deseas conectar un gestor externo (ej: DBeaver, PGAdmin) desde tu máquina
+    ports:
+      - "5432:5432"
+    # Volumen persistente para que los datos de tus prendas y usuarios no se borren al apagar el contenedor
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Servicio del Backend Web (FastAPI)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inventario_backend_container
+    restart: unless-stopped
+    # Mapea el puerto local 8000 al puerto 8000 del contenedor
+    ports:
+      - "8000:8000"
+    # Carga las variables de entorno desde el archivo .env automáticamente (DATABASE_URL, JWT_SECRET, etc.)
+    env_file:
+      - .env
+    environment:
+          - JWT_SECRET=8f9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
+          - JWT_ALGORITHM=HS256
+    # Sincroniza el código local con el contenedor para que la bandera --reload detecte tus cambios inmediatamente
+    volumes:
+      - ./app:/code/app
+    # Garantiza que el servicio web espere a que el contenedor de la base de datos esté levantado
+    depends_on:
+      - db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+# Definición del volumen persistente de PostgreSQL
+volumes:
+  postgres_data:
