@@ -33,20 +33,10 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DB API to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-    """
-    # Para el modo offline, también interceptamos la URL y la hacemos dinámica
+    """Run migrations in 'offline' mode."""
     url = settings.DATABASE_URL
-    # Truco Pro: Alembic nativo corre sincrónico bajo el capó. Si usas asyncpg,
-    # reemplazamos el driver para que no falle al generar scripts SQL offline.
+
+    # Limpieza absoluta del driver asíncrono
     if "postgresql+asyncpg://" in url:
         url = url.replace("postgresql+asyncpg://", "postgresql://")
 
@@ -62,25 +52,19 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-    """
-    # ------------------------------------------------------------------
-    # MODIFICACIÓN: Inyección dinámica de la URL desde la configuración
-    # ------------------------------------------------------------------
+    """Run migrations in 'online' mode."""
+    # Obtenemos la sección de configuración de alembic.ini si existiera
     configuration = config.get_section(config.config_ini_section) or {}
 
     url = settings.DATABASE_URL
-    # Forzamos el driver síncrono estándar (postgresql://) únicamente durante
-    # la ejecución de las migraciones para evitar conflictos de hilos con asyncpg.
+
+    # Forzar estrictamente el uso del dialecto síncrono estándar de PostgreSQL
     if "postgresql+asyncpg://" in url:
         url = url.replace("postgresql+asyncpg://", "postgresql://")
 
+    # Inyectamos de forma directa la URL limpia sobreescribiendo cualquier residuo
     configuration["sqlalchemy.url"] = url
 
-    # Pasamos la configuración modificada al generador del engine
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",

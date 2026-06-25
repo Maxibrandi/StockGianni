@@ -69,3 +69,15 @@ async def obtener_prenda(
             detail=f"La prenda con ID {id_prenda} no fue encontrada en el catálogo maestro."
         )
     return prenda
+
+
+# Ejemplo en tu ruta de listado:
+@router.get("/", response_model=List[PrendaResponse])
+async def listar_prendas(
+    limit: int = 20,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db)
+):
+    query = select(Prenda).offset(offset).limit(limit).options(selectinload(Prenda.variantes))
+    result = await db.execute(query)
+    return result.scalars().all()
