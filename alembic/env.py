@@ -1,3 +1,6 @@
+import asyncio
+from sqlalchemy.ext.asyncio import async_engine_from_config
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -9,6 +12,12 @@ from sqlalchemy import pool
 # ------------------------------------------------------------------
 from app.core.config import settings
 from app.core.database import Base
+import app.models
+from app.models.venta import Venta
+from app.models.usuario import Usuario
+
+
+target_metadata = Base.metadata
 
 # Es CRUCIAL importar todos los modelos explícitamente para el --autogenerate
 from app.models.usuario import Usuario
@@ -35,11 +44,6 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = settings.DATABASE_URL
-
-    # Limpieza absoluta del driver asíncrono
-    if "postgresql+asyncpg://" in url:
-        url = url.replace("postgresql+asyncpg://", "postgresql://")
-
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -51,31 +55,34 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-    # Obtenemos la sección de configuración de alembic.ini si existiera
+def do_run_migrations(connection):
+    context.configure(connection=connection, target_metadata=target_metadata)
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_migrations_online() -> None:
+    """Run migrations in 'online' mode using an async connection."""
     configuration = config.get_section(config.config_ini_section) or {}
 
-    url = settings.DATABASE_URL
+    # Usamos directamente la URL asíncrona de la configuración de tu App
+    configuration["sqlalchemy.url"] = settings.DATABASE_URL
 
-    # Forzar estrictamente el uso del dialecto síncrono estándar de PostgreSQL
-    if "postgresql+asyncpg://" in url:
-        url = url.replace("postgresql+asyncpg://", "postgresql://")
-
-    # Inyectamos de forma directa la URL limpia sobreescribiendo cualquier residuo
-    configuration["sqlalchemy.url"] = url
-
-    connectable = engine_from_config(
+    connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata
-        )
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
 
-        with context.begin_transaction():
-            context.run_migrations()
+    await connectable.dispose()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    # Ejecutamos la migración online de forma asíncrona
+    asyncio.run(run_migrations_online())

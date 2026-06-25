@@ -1,12 +1,14 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from sqlalchemy.future import select
 from app.core.database import get_db
 from app.api.deps import get_current_user, get_current_admin
 from app.models.usuario import Usuario
 from app.schemas.prenda import PrendaCreate, PrendaResponse, StockPrendaResponse
 from app.repositories import prenda_repo
+from app.models.prenda import Prenda  # <--- Asegurate de que esta línea exista
+from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
