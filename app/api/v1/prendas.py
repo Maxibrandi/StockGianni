@@ -17,6 +17,8 @@ from app.models.prenda import Prenda as PrendaDB  # Le ponemos alias para que no
 # --- CAPA REPOSITORIES ---
 from app.repositories.prenda_repo import PrendaRepository
 
+from fastapi.responses import StreamingResponse
+
 router = APIRouter()
 prenda_repo = PrendaRepository()
 
@@ -113,3 +115,44 @@ async def modificar_prenda(
         )
 
     return prenda_actualizada
+
+
+# =========================================================================
+# ENDPOINT: Buscar prenda por Código de Barras
+# =========================================================================
+@router.get(
+    "/buscar/codigo",
+    response_model=PrendaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Buscar una prenda mediante el código de barras de una de sus variantes"
+)
+async def obtener_prenda_por_codigo(
+    codigo: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """
+    Este endpoint recibe el código que lee el escáner físico. Busca qué variante
+    tiene ese código y te devuelve la prenda completa con sus talles disponibles.
+    """
+    prenda = await prenda_repo.get_prenda_by_codigo_barras(db=db, codigo_barras=codigo)
+    if not prenda:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró ningún producto con el código de barras: {codigo}"
+        )
+    return prenda
+
+
+
+@router.get("/{id_prenda}/pdf-codigos", summary="Descargar PDF con códigos de barras")
+async def descargar_pdf_codigos(id_prenda: int, db: AsyncSession = Depends(get_db)):
+    pdf_buffer = await prenda_repo.generar_pdf_codigos(db=db, id_prenda=id_prenda)
+    if not pdf_buffer:
+        raise HTTPException(status_code=404, detail="Prenda no encontrada")
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=codigos_prenda_{id_prenda}.pdf"}
+    )
