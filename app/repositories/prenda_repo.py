@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 # Importamos los modelos ORM de la base de datos
 from app.models.prenda import Prenda
 from app.models.stock import StockPrenda
+from app.schemas.prenda import PrendaUpdate
 # Importamos el esquema de validación Pydantic
 from app.schemas.prenda import PrendaCreate
 
@@ -73,3 +74,29 @@ async def get_variantes_bajo_stock(db: AsyncSession) -> List[StockPrenda]:
     )
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+class PrendaRepository:
+    async def update(self, db: AsyncSession, id_prenda: int, prenda_update: PrendaUpdate):
+        # 1. Buscamos la prenda cargando explícitamente sus variantes de forma asíncrona
+        query = (
+            select(Prenda)
+            .where(Prenda.id_prenda == id_prenda)
+            .options(selectinload(Prenda.variantes))  # <-- Esto evita el MissingGreenlet
+        )
+        result = await db.execute(query)
+        db_prenda = result.scalar_one_or_none()
+
+        if not db_prenda:
+            return None
+
+        # 2. Actualizamos los campos
+        update_data = prenda_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_prenda, key, value)
+
+        # 3. Guardamos los cambios
+        await db.commit()
+        await db.refresh(db_prenda, attribute_names=["variantes"])  # <-- Refrescamos incluyendo la relación
+
+        return db_prenda

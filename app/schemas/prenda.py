@@ -83,3 +83,10 @@ class StockPrendaConPadreResponse(StockPrendaResponse):
     """
     # Pydantic validará e incluirá el objeto PrendaBase de forma anidada
     prenda: PrendaBase
+
+class PrendaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    precio_base: Optional[float] = None
+
+    class Config:
+        from_attributes = True

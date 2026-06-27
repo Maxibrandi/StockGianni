@@ -2,15 +2,23 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+
 from app.core.database import get_db
 from app.api.deps import get_current_user, get_current_admin
 from app.models.usuario import Usuario
-from app.schemas.prenda import PrendaCreate, PrendaResponse, StockPrendaResponse
-from app.repositories import prenda_repo
-from app.models.prenda import Prenda  # <--- Asegurate de que esta línea exista
-from sqlalchemy.orm import selectinload
+
+# --- CAPA SCHEMAS (Pydantic para validaciones de API) ---
+from app.schemas.prenda import PrendaCreate, PrendaResponse, StockPrendaResponse, PrendaUpdate
+
+# --- CAPA MODELS (SQLAlchemy para Base de Datos) ---
+from app.models.prenda import Prenda as PrendaDB  # Le ponemos alias para que no choque
+
+# --- CAPA REPOSITORIES ---
+from app.repositories.prenda_repo import PrendaRepository
 
 router = APIRouter()
+prenda_repo = PrendaRepository()
 
 
 @router.post(
@@ -76,10 +84,32 @@ async def obtener_prenda(
 # Ejemplo en tu ruta de listado:
 @router.get("/", response_model=List[PrendaResponse])
 async def listar_prendas(
-    limit: int = 20,
-    offset: int = 0,
-    db: AsyncSession = Depends(get_db)
+        offset: int = 0,
+        limit: int = 100,
+        db: AsyncSession = Depends(get_db)
 ):
-    query = select(Prenda).offset(offset).limit(limit).options(selectinload(Prenda.variantes))
+    # Cambiamos Prenda por PrendaDB aquí inside select y selectinload
+    query = select(PrendaDB).offset(offset).limit(limit).options(selectinload(PrendaDB.variantes))
+
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.patch("/{id_prenda}", response_model=PrendaResponse, status_code=status.HTTP_200_OK)
+async def modificar_prenda(
+        id_prenda: int,
+        prenda_in: PrendaUpdate,
+        db: AsyncSession = Depends(get_db)
+):
+    """
+    Modifica los datos de una prenda existente (Nombre y/o Precio).
+    """
+    prenda_actualizada = await prenda_repo.update(db=db, id_prenda=id_prenda, prenda_update=prenda_in)
+
+    if not prenda_actualizada:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró la prenda con ID {id_prenda}"
+        )
+
+    return prenda_actualizada
