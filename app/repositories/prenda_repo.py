@@ -22,7 +22,6 @@ from app.schemas.prenda import PrendaCreate, PrendaUpdate
 
 class PrendaRepository:
 
-    # 1. Traer una prenda por su ID con todas sus variantes
     async def get_prenda_by_id(self, db: AsyncSession, id_prenda: int) -> Optional[Prenda]:
         query = (
             select(Prenda)
@@ -32,7 +31,6 @@ class PrendaRepository:
         result = await db.execute(query)
         return result.scalar_one_or_none()
 
-    # 2. Obtener todas las variantes que estén igual o por debajo de su stock mínimo (Alertas)
     async def get_variantes_bajo_stock(self, db: AsyncSession):
         query = (
             select(StockPrenda)
@@ -42,7 +40,6 @@ class PrendaRepository:
         result = await db.execute(query)
         return result.scalars().all()
 
-    # 3. Buscar prenda mediante el código de barras de una de sus variantes
     async def get_prenda_by_codigo_barras(self, db: AsyncSession, codigo_barras: str) -> Optional[Prenda]:
         query = (
             select(StockPrenda)
@@ -56,7 +53,6 @@ class PrendaRepository:
             return variante.prenda
         return None
 
-    # 4. Generar el PDF con la cuadrícula de etiquetas listas para imprimir
     async def generar_pdf_codigos(self, db: AsyncSession, id_prenda: int) -> io.BytesIO:
         prenda = await self.get_prenda_by_id(db=db, id_prenda=id_prenda)
         if not prenda or not prenda.variantes:
@@ -70,7 +66,6 @@ class PrendaRepository:
         fila_actual = []
 
         for variante in prenda.variantes:
-            # Generar la imagen del código de barras en memoria
             fp = io.BytesIO()
             barcode_obj = Code128(variante.codigo_barras, writer=ImageWriter())
             barcode_obj.write(fp, options={"write_text": False, "module_height": 5.0})
@@ -78,7 +73,6 @@ class PrendaRepository:
 
             img_barcode = RLImage(fp, width=140, height=45)
 
-            # Empaquetamos en una sub-tabla para asegurar la estructura limpia en ReportLab
             celda_diseno = Table([
                 [f"{prenda.nombre}"],
                 [f"Talle: {variante.talle}"],
@@ -119,7 +113,6 @@ class PrendaRepository:
         buffer.seek(0)
         return buffer
 
-    # 5. El método Update unificado que modifica Nombre, Precio y Stocks
     async def update(self, db: AsyncSession, id_prenda: int, prenda_update: PrendaUpdate):
         query = (
             select(Prenda)
@@ -132,14 +125,12 @@ class PrendaRepository:
         if not db_prenda:
             return None
 
-        # Actualizar datos propios de la Prenda (Padre)
         update_data = prenda_update.model_dump(exclude_unset=True)
         variantes_data = update_data.pop("variantes", None)
 
         for key, value in update_data.items():
             setattr(db_prenda, key, value)
 
-        # Actualizar datos de las Variantes hijas (Precio, Stock)
         if variantes_data:
             for v_data in variantes_data:
                 for db_variante in db_prenda.variantes:

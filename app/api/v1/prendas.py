@@ -79,7 +79,7 @@ async def listar_prendas(
 @router.put("/{id_prenda}", response_model=PrendaResponse)
 async def actualizar_prenda(
     id_prenda: int,
-    prenda_in: PrendaUpdate, # <-- Aquí recibe las variantes, el precio y stock nuevo
+    prenda_in: PrendaUpdate,
     db: AsyncSession = Depends(get_db)
 ):
     prenda_actualizada = await prenda_repo.update(db=db, id_prenda=id_prenda, prenda_update=prenda_in)
