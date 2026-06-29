@@ -11,7 +11,6 @@ from app.schemas.venta import VentaCreate
 
 
 async def procesar_venta(db: AsyncSession, venta_in: VentaCreate, id_usuario: int) -> Venta:
-    # Iniciamos un bloque de captura de errores para garantizar la atomicidad
     try:
         nueva_venta = Venta(
             id_usuario=id_usuario,
@@ -39,10 +38,8 @@ async def procesar_venta(db: AsyncSession, venta_in: VentaCreate, id_usuario: in
                            f"Disponibles: {variante_stock.stock_actual}, Solicitados: {item.cantidad}."
                 )
 
-            # Descontar stock
             variante_stock.stock_actual -= item.cantidad
 
-            # Calcular financieros
             subtotal_item = variante_stock.precio_venta * item.cantidad
             acumulador_total += subtotal_item
 
@@ -58,10 +55,8 @@ async def procesar_venta(db: AsyncSession, venta_in: VentaCreate, id_usuario: in
 
         db.add(nueva_venta)
 
-        # Guardamos todo junto. Si algo falla acá, va directo al except
         await db.commit()
 
-        # Evitamos problemas de lazy loading devolviendo el objeto completo
         query_final = (
             select(Venta)
             .where(Venta.id_venta == nueva_venta.id_venta)
@@ -71,7 +66,6 @@ async def procesar_venta(db: AsyncSession, venta_in: VentaCreate, id_usuario: in
         return result_final.scalar_one()
 
     except Exception as e:
-        # Si Pydantic o la BD fallan a mitad de camino, cancelamos cualquier cambio en el stock
         await db.rollback()
         if isinstance(e, HTTPException):
             raise e

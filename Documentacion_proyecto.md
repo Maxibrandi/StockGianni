@@ -44,4 +44,42 @@
 
 
 ## Casos de uso:
-        1)
+    1) Registrar salida de mercaderia:
+        -El vendedor escanea el codigo de barras de la etiqueta de la prenda, el sistema notifica el 
+        producto talle, precio y lo muestra en pantalla.
+        El vendero selecciona el tipo de operacion y hace click en "confirmar". El sistema descuenta 
+        la unidad del inventario, registra la transaccion y actualiza los datos en tiempo real.
+    
+    2) Alerta de stock minimo:
+        -Se realiza por venta o cambio un descuento de stock de una prenda. El sistema ceifica el stock
+        actual, al cumplirse la condicion, el sistema genera una notificacion.
+        Muestra una alerta visual y una notificacion en el la seccion faltantes.
+        
+    3) Reporte de Venta:
+        -El administrador ingresa a "Reportes", selecciona el filtro de tiempo: Diario, Mensual o Anual
+        el sistema procesa las ventas registradas en el periodo de tiempo seleccionado.
+
+    4) Carga de stock:
+        -El adminnistrador puede cargar el stock, seleccionando categoria, talle, tipo de tela,
+        precio de compra, precio de venta, stock actual, stock minimo para la alerta y codigo de barras,
+        si no tiene seleccionado, se le generara automaticamente
+    
+    5) Modificar Stock:
+        -El administrador puede modificar el stock, la cantidad, los precios e inhabilitar el producto
+        de ser necesario
+
+## Diagrama de Actividades
+    Carriles:
+        .Vendedor: Acciones manuales y de interfaz (escanear, buscar y seleccionar)
+        .Sistema: Procesa datos, valida stock, genera alertas y actualiza la base de datos
+        .Administrador: Recibe notificacion de falta de stock, administra el stock
+    
+    Paso a paso:
+        -El vendedor busca el producto, elige si escanear, a traves del codigo de barras
+        o buscar manualmente por nombre, talle, tela o categoria.
+        -El sistema busca coincidencia, si no existe, vuelve al punto de busqueda y notifica.
+        Si existe, muestra el producto con sus talles y precios en pantalla
+        -El vendedor selecciona si es Venta o Cambio y confirma la transaccion.
+        -El sistema descuenta la unidad. Actualiza de inmedianto la pantalla y evalua si hay que
+        notificar faltan
+        

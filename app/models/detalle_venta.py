@@ -3,13 +3,9 @@ from sqlalchemy import Integer, Numeric, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
-# 💡 Eliminamos el import de Venta para romper definitivamente el import circular
 
 class DetalleVenta(Base):
-    """
-    Modelo ORM para la tabla 'detalle_venta'.
-    Representa cada línea o artículo despachado dentro de una venta específica.
-    """
+
     __tablename__ = "detalle_venta"
 
     id_detalle_venta: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -31,7 +27,6 @@ class DetalleVenta(Base):
         nullable=False
     )
 
-    # Funciona perfecto sin el import gracias al string "Venta"
     venta: Mapped["Venta"] = relationship(
         "Venta",
         back_populates="detalles"

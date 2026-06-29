@@ -15,7 +15,6 @@ async def obtener_reporte(
         fecha_hasta: datetime = Query(..., description="Fecha final del reporte"),
         db: AsyncSession = Depends(get_db)
 ):
-    # Forzamos las horas para abarcar los días completos (00:00:00 hasta las 23:59:59)
     desde = datetime.combine(fecha_desde.date(), time.min)
     hasta = datetime.combine(fecha_hasta.date(), time.max)
 

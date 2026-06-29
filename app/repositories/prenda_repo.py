@@ -1,152 +1,65 @@
+import io
 from typing import List, Optional
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-# Importamos los modelos ORM de la base de datos
-from app.models.prenda import Prenda
-from app.models.stock import StockPrenda
-from app.schemas.prenda import PrendaUpdate
-# Importamos el esquema de validación Pydantic
-from app.schemas.prenda import PrendaCreate
-
-#Codigo de barras
-import io
+# Herramientas para la generación de códigos de barra y PDF
 from barcode import Code128
 from barcode.writer import ImageWriter
-
-#Pdfs
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Spacer
 from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage
 
+# Modelos
+from app.models.prenda import Prenda
+from app.models.stock import StockPrenda
 
-
-async def create_prenda_completa(self, db: AsyncSession, prenda_in: PrendaCreate) -> Prenda:
-    # 1. Instanciar el modelo principal (Padre)
-    nueva_prenda = Prenda(
-        nombre=prenda_in.nombre,
-        categoria=prenda_in.categoria,
-        tipo_tela=prenda_in.tipo_tela,
-        activo=True
-    )
-
-    # 2. Iterar e instanciar los hijos (StockPrenda)
-    for variante_in in prenda_in.variantes:
-
-        # --- AQUÍ LÓGICA DE AUTOGENERACIÓN ---
-        # Si el código viene vacío o None desde el frontend, le inventamos uno único por talle
-        cod_barras = variante_in.codigo_barras
-        if not cod_barras:
-            cod_barras = "".join([str(random.randint(0, 9)) for _ in range(12)])
-
-        nueva_variante = StockPrenda(
-            talle=variante_in.talle,
-            codigo_barras=cod_barras,  # <--- Usamos el código verificado/generado
-            precio_venta=variante_in.precio_venta,
-            stock_actual=variante_in.stock_actual,
-            stock_minimo=variante_in.stock_minimo
-        )
-        nueva_prenda.variantes.append(nueva_variante)
-
-    # 3. Guardar en la sesión y confirmar la transacción
-    db.add(nueva_prenda)
-    await db.commit()
-
-    # 🚀 REEMPLAZO DE DB.REFRESH POR SELECTINLOAD:
-    query = (
-        select(Prenda)
-        .where(Prenda.id_prenda == nueva_prenda.id_prenda)
-        .options(selectinload(Prenda.variantes))
-    )
-    result = await db.execute(query)
-
-    return result.scalar_one()
-
-
-# --- NUEVO MÉTODO DE BÚSQUEDA ---
-async def get_prenda_by_codigo_barras(self, db: AsyncSession, codigo_barras: str) -> Prenda | None:
-    """
-    Busca la prenda completa haciendo un JOIN por el código de barras de su variante (hijo).
-    """
-    query = (
-        select(Prenda)
-        .join(Prenda.variantes)  # Conectamos con StockPrenda
-        .where(StockPrenda.codigo_barras == codigo_barras)
-        .options(selectinload(Prenda.variantes))  # Precargamos todos los talles para el frontend
-    )
-    result = await db.execute(query)
-    return result.scalar_one_or_none()
-
-
-async def get_prenda_by_id(db: AsyncSession, id_prenda: int) -> Optional[Prenda]:
-    """
-    Recupera una prenda específica de la base de datos a través de su ID.
-    Usa selectinload para precargar todas sus variantes en una sola ronda de consultas.
-    """
-    query = (
-        select(Prenda)
-        .where(Prenda.id_prenda == id_prenda)
-        .options(selectinload(Prenda.variantes))
-    )
-    result = await db.execute(query)
-    return result.scalar_one_or_none()
-
-
-async def get_variantes_bajo_stock(db: AsyncSession) -> List[StockPrenda]:
-    """
-    Consulta todas las variantes de prendas cuyo inventario físico sea menor o igual
-    al umbral mínimo configurado. Trae la relación del padre para identificar el nombre de la prenda.
-    """
-    query = (
-        select(StockPrenda)
-        .where(StockPrenda.stock_actual <= StockPrenda.stock_minimo)
-        .options(selectinload(StockPrenda.prenda))  # Carga la información de la prenda padre
-    )
-    result = await db.execute(query)
-    return list(result.scalars().all())
+# Esquemas
+from app.schemas.prenda import PrendaCreate, PrendaUpdate
 
 
 class PrendaRepository:
-    async def update(self, db: AsyncSession, id_prenda: int, prenda_update: PrendaUpdate):
-        # 1. Buscamos la prenda cargando explícitamente sus variantes de forma asíncrona
+
+    # 1. Traer una prenda por su ID con todas sus variantes
+    async def get_prenda_by_id(self, db: AsyncSession, id_prenda: int) -> Optional[Prenda]:
         query = (
             select(Prenda)
             .where(Prenda.id_prenda == id_prenda)
-            .options(selectinload(Prenda.variantes))  # <-- Esto evita el MissingGreenlet
-        )
-        result = await db.execute(query)
-        db_prenda = result.scalar_one_or_none()
-
-        if not db_prenda:
-            return None
-
-        # 2. Actualizamos los campos
-        update_data = prenda_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_prenda, key, value)
-
-        # 3. Guardamos los cambios
-        await db.commit()
-        await db.refresh(db_prenda, attribute_names=["variantes"])  # <-- Refrescamos incluyendo la relación
-
-        return db_prenda
-
-    async def get_prenda_by_codigo_barras(self, db: AsyncSession, codigo_barras: str) -> Prenda | None:        # Buscamos la prenda por código e incluimos sus variantes (talles/stock)
-        query = (
-            select(PrendaDB)
-            .where(PrendaDB.codigo_barras == codigo_barras)
-            .options(selectinload(PrendaDB.variantes))
+            .options(selectinload(Prenda.variantes))
         )
         result = await db.execute(query)
         return result.scalar_one_or_none()
 
+    # 2. Obtener todas las variantes que estén igual o por debajo de su stock mínimo (Alertas)
+    async def get_variantes_bajo_stock(self, db: AsyncSession):
+        query = (
+            select(StockPrenda)
+            .options(selectinload(StockPrenda.prenda))
+            .where(StockPrenda.stock_actual <= StockPrenda.stock_minimo)
+        )
+        result = await db.execute(query)
+        return result.scalars().all()
+
+    # 3. Buscar prenda mediante el código de barras de una de sus variantes
+    async def get_prenda_by_codigo_barras(self, db: AsyncSession, codigo_barras: str) -> Optional[Prenda]:
+        query = (
+            select(StockPrenda)
+            .where(StockPrenda.codigo_barras == codigo_barras)
+            .options(selectinload(StockPrenda.prenda).selectinload(Prenda.variantes))
+        )
+        result = await db.execute(query)
+        variante = result.scalar_one_or_none()
+
+        if variante:
+            return variante.prenda
+        return None
+
+    # 4. Generar el PDF con la cuadrícula de etiquetas listas para imprimir
     async def generar_pdf_codigos(self, db: AsyncSession, id_prenda: int) -> io.BytesIO:
-        """
-        Genera un PDF en memoria con las etiquetas de código de barras de todas las variantes.
-        """
         prenda = await self.get_prenda_by_id(db=db, id_prenda=id_prenda)
-        if not prenda:
+        if not prenda or not prenda.variantes:
             return None
 
         buffer = io.BytesIO()
@@ -157,43 +70,47 @@ class PrendaRepository:
         fila_actual = []
 
         for variante in prenda.variantes:
-            # 1. Generar la imagen del código de barras en memoria
+            # Generar la imagen del código de barras en memoria
             fp = io.BytesIO()
-            # Usamos Code128 que es excelente para texto/números compactos
             barcode_obj = Code128(variante.codigo_barras, writer=ImageWriter())
             barcode_obj.write(fp, options={"write_text": False, "module_height": 5.0})
             fp.seek(0)
 
-            # 2. Construir la etiqueta visual
             img_barcode = RLImage(fp, width=140, height=45)
 
-            # Celda de la etiqueta: Nombre + Talle + Código Barras + Texto del Código
-            celda = [
-                f"{prenda.nombre}",
-                f"Talle: {variante.talle}",
-                img_barcode,
-                f"*{variante.codigo_barras}*"
-            ]
+            # Empaquetamos en una sub-tabla para asegurar la estructura limpia en ReportLab
+            celda_diseno = Table([
+                [f"{prenda.nombre}"],
+                [f"Talle: {variante.talle}"],
+                [img_barcode],
+                [f"*{variante.codigo_barras}*"]
+            ], colWidths=[170])
 
-            # Armamos una cuadrícula de 3 columnas de etiquetas por fila
-            fila_actual.append(celda)
+            celda_diseno.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTSIZE', (0, 0), (0, 0), 10),  # Nombre prenda
+                ('FONTSIZE', (0, 1), (0, 1), 9),   # Talle
+                ('FONTSIZE', (0, 3), (0, 3), 8),   # Texto código
+            ]))
+
+            fila_actual.append(celda_diseno)
             if len(fila_actual) == 3:
                 data_tabla.append(fila_actual)
                 fila_actual = []
 
-        if fila_actual:  # Si quedaron etiquetas colgadas
+        if fila_actual:  # Rellenamos si la última fila quedó incompleta
             while len(fila_actual) < 3:
                 fila_actual.append("")
             data_tabla.append(fila_actual)
 
-        # 3. Darle estilo de cuadrícula de etiquetas al PDF
+        # Diseño final de la cuadrícula de etiquetas (con guías de corte ligeras)
         tabla = Table(data_tabla, colWidths=[180, 180, 180])
         tabla.setStyle(TableStyle([
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-            ('TOPPADDING', (0, 0), (-1, -1), 15),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),  # Guía de corte temporal
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
             ('BOX', (0, 0), (-1, -1), 0.5, colors.lightgrey),
         ]))
 
@@ -201,3 +118,39 @@ class PrendaRepository:
         doc.build(story)
         buffer.seek(0)
         return buffer
+
+    # 5. El método Update unificado que modifica Nombre, Precio y Stocks
+    async def update(self, db: AsyncSession, id_prenda: int, prenda_update: PrendaUpdate):
+        query = (
+            select(Prenda)
+            .where(Prenda.id_prenda == id_prenda)
+            .options(selectinload(Prenda.variantes))
+        )
+        result = await db.execute(query)
+        db_prenda = result.scalar_one_or_none()
+
+        if not db_prenda:
+            return None
+
+        # Actualizar datos propios de la Prenda (Padre)
+        update_data = prenda_update.model_dump(exclude_unset=True)
+        variantes_data = update_data.pop("variantes", None)
+
+        for key, value in update_data.items():
+            setattr(db_prenda, key, value)
+
+        # Actualizar datos de las Variantes hijas (Precio, Stock)
+        if variantes_data:
+            for v_data in variantes_data:
+                for db_variante in db_prenda.variantes:
+                    if db_variante.id_stock_prenda == v_data["id_stock_prenda"]:
+                        if "precio_venta" in v_data and v_data["precio_venta"] is not None:
+                            db_variante.precio_venta = v_data["precio_venta"]
+                        if "stock_actual" in v_data and v_data["stock_actual"] is not None:
+                            db_variante.stock_actual = v_data["stock_actual"]
+                        if "stock_minimo" in v_data and v_data["stock_minimo"] is not None:
+                            db_variante.stock_minimo = v_data["stock_minimo"]
+
+        await db.commit()
+        await db.refresh(db_prenda, attribute_names=["variantes"])
+        return db_prenda

@@ -5,14 +5,8 @@ from sqlalchemy import Integer, Numeric, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
-
-# 💡 Eliminamos el import de DetalleVenta para romper el bucle circular
-
 class Venta(Base):
-    """
-    Modelo ORM para la tabla 'venta'.
-    Almacena la cabecera de cada transacción de salida realizada en el local.
-    """
+
     __tablename__ = "venta"
 
     id_venta: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -33,7 +27,6 @@ class Venta(Base):
         nullable=False
     )
 
-    # Esto funciona perfectamente sin el import gracias a las comillas ""
     detalles: Mapped[List["DetalleVenta"]] = relationship(
         "DetalleVenta",
         back_populates="venta",

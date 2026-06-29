@@ -2,29 +2,17 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-
-# Importamos las herramientas de conexión y configuración global
 from app.core.config import settings
 from app.core.database import get_db
-# Importamos los repositorios y modelos de datos
 from app.models.usuario import Usuario, RolUsuario
 from app.repositories import usuario_repo
-
-# Inicializamos el esquema OAuth2. FastAPI inspeccionará automáticamente la cabecera
-# de las peticiones buscando un token del tipo 'Bearer'.
-# El parámetro tokenUrl le indica a Swagger dónde debe enviar las credenciales para el login.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 async def get_current_user(
         db: AsyncSession = Depends(get_db),
         token: str = Depends(oauth2_scheme)
 ) -> Usuario:
-    """
-    Dependencia utilitaria que valida el token JWT y retorna el objeto Usuario autenticado.
-    Si el token ha expirado, está alterado o el usuario fue eliminado/desactivado,
-    corta el flujo web devolviendo un error 401 Unauthorized.
-    """
-    # Excepción estándar reutilizable para fallos de credenciales
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudieron validar las credenciales o el token ha expirado.",
@@ -64,7 +52,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Devolvemos la instancia completa del usuario ORM
     return usuario
 
 

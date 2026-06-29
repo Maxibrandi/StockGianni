@@ -3,15 +3,18 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
-# Reemplaza con las rutas exactas de tus modelos de venta/detalles
-from app.models.detalle_venta import DetalleVenta  # <-- Ahora lo traemos de su nuevo hogarfrom app.models.prenda import Prenda
+
+# --- IMPORTACIONES CRÍTICAS ---
+from app.models.venta import Venta          # <-- Agregado para que funcione la query
+from app.models.prenda import Prenda        # <-- Agregado para que funcione la query
+from app.models.detalle_venta import DetalleVenta
 from app.models.stock import StockPrenda
 
 
 class ReporteRepository:
 
-    async def obtener_metricas_periodo(self, db: AsyncSession, desde: datetime, hasta: datetime):
-        # 1. Total Recaudado y Cantidad de Transacciones
+    # 🔄 NOMBRE CAMBIADO A INGLÉS PARA PASO 1
+    async def obtain_metricas_periodo(self, db: AsyncSession, desde: datetime, hasta: datetime):
         query_ventas = (
             select(
                 func.sum(Venta.total).label("total"),
@@ -26,16 +29,16 @@ class ReporteRepository:
         cantidad_ventas = cantidad if cantidad else 0
         ticket_promedio = total_recaudado / cantidad_ventas if cantidad_ventas > 0 else Decimal("0.00")
 
-        # 2. Ranking de los 5 productos más vendidos del periodo
+        # Productos más vendidos del periodo
         query_top = (
             select(
                 Prenda.nombre,
                 StockPrenda.talle,
                 func.sum(DetalleVenta.cantidad).label("total_cant")
             )
-            .join(DetalleVenta.variante)  # Conecta DetalleVenta con StockPrenda
-            .join(StockPrenda.prenda)  # Conecta StockPrenda con Prenda (Padre)
-            .join(Venta)  # Conecta Detalle con el encabezado Venta para la fecha
+            .join(StockPrenda, DetalleVenta.id_stock_prenda == StockPrenda.id_stock_prenda)
+            .join(Prenda, StockPrenda.id_prenda == Prenda.id_prenda)
+            .join(Venta, DetalleVenta.id_venta == Venta.id_venta)
             .where(Venta.fecha_venta.between(desde, hasta))
             .group_by(Prenda.nombre, StockPrenda.talle)
             .order_by(func.sum(DetalleVenta.cantidad).desc())

@@ -3,90 +3,59 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# ==========================================
-# ESQUEMAS PARA VARIANTES DE STOCK (StockPrenda)
-# ==========================================
-
 class StockPrendaBase(BaseModel):
-    """
-    Atributos comunes para el control de inventario y variantes de una prenda.
-    """
-    talle: str = Field(..., max_length=10, description="Talle de la variante (ej: S, M, L, 42)")
-    codigo_barras: str = Field(..., max_length=50, description="Código de barras único para escaneo rápido")
-    precio_venta: Decimal = Field(..., max_digits=10, decimal_places=2, ge=0, description="Precio de venta exacto")
-    stock_actual: int = Field(default=0, ge=0, description="Cantidad física disponible en el local")
-    stock_minimo: int = Field(default=5, ge=0, description="Umbral mínimo para disparar alertas de reposición")
+    talle: str = Field(..., max_length=10)
+
+    # 🔄 MODIFICADO: Ahora es Optional y su valor por defecto es None
+    codigo_barras: Optional[str] = Field(default=None, max_length=50)
+
+    precio_venta: Decimal = Field(..., max_digits=10, decimal_places=2, ge=0)
+    stock_actual: int = Field(default=0, ge=0)
+    stock_minimo: int = Field(default=5, ge=0)
 
 
+# El resto del archivo queda exactamente igual...
 class StockPrendaCreate(StockPrendaBase):
-    """
-    Esquema utilizado para la creación de una variante de stock.
-    Hereda directamente de la base sin campos adicionales.
-    """
     pass
 
 
 class StockPrendaResponse(StockPrendaBase):
-    """
-    Esquema de salida para las variantes de stock.
-    Incluye su ID único e identifica a qué prenda pertenece.
-    """
     id_stock_prenda: int
     id_prenda: int
-
-    # Configuración nativa de Pydantic v2 para mapear desde modelos de SQLAlchemy
     model_config = ConfigDict(from_attributes=True)
 
 
-# ==========================================
-# ESQUEMAS PARA EL MAESTRO DE PRENDAS (Prenda)
-# ==========================================
-
 class PrendaBase(BaseModel):
-    """
-    Atributos globales e inherentes al diseño o modelo de la prenda de indumentaria.
-    """
-    nombre: str = Field(..., max_length=100, description="Nombre descriptivo del artículo (ej: Remera Térmica)")
-    categoria: str = Field(..., max_length=50, description="Categoría de la prenda (ej: Superior, Inferior, Accesorios)")
-    tipo_tela: str = Field(..., max_length=50, description="Composición textil (ej: Algodón, Denim, Lycra)")
+    nombre: str = Field(..., max_length=100)
+    categoria: str = Field(..., max_length=50)
+    tipo_tela: str = Field(..., max_length=50)
 
 
 class PrendaCreate(PrendaBase):
-    """
-    Esquema clave para el endpoint de alta del producto.
-    Habilita la validación anidada recibiendo una lista de variantes de stock.
-    """
-    variantes: List[StockPrendaCreate] = Field(
-        ...,
-        min_length=1,
-        description="Lista de variantes por talle que se inicializarán con la prenda"
-    )
+    variantes: List[StockPrendaCreate] = Field(..., min_length=1)
 
 
 class PrendaResponse(PrendaBase):
-    """
-    Esquema de salida completo del catálogo.
-    Incluye ID, estado de baja lógica y serializa sus variantes asociadas de forma automática.
-    """
     id_prenda: int
     activo: bool
     variantes: List[StockPrendaResponse] = []
-
-    # Configuración nativa de Pydantic v2 para mapear desde modelos de SQLAlchemy
     model_config = ConfigDict(from_attributes=True)
 
 
 class StockPrendaConPadreResponse(StockPrendaResponse):
-    """
-    Extensión para reportes donde se necesita saber la información
-    maestra de la prenda además de la variante física.
-    """
-    # Pydantic validará e incluirá el objeto PrendaBase de forma anidada
     prenda: PrendaBase
+
+class StockPrendaUpdate(BaseModel):
+    id_stock_prenda: int
+    precio_venta: Optional[Decimal] = None
+    stock_actual: Optional[int] = None
+    stock_minimo: Optional[int] = None
 
 class PrendaUpdate(BaseModel):
     nombre: Optional[str] = None
-    precio_base: Optional[float] = None
+    categoria: Optional[str] = None
+    tipo_tela: Optional[str] = None
+    variantes: Optional[List[StockPrendaUpdate]] = None
 
     class Config:
         from_attributes = True

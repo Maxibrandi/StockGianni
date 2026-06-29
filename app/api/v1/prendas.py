@@ -3,20 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-
 from app.core.database import get_db
 from app.api.deps import get_current_user, get_current_admin
 from app.models.usuario import Usuario
-
-# --- CAPA SCHEMAS (Pydantic para validaciones de API) ---
 from app.schemas.prenda import PrendaCreate, PrendaResponse, StockPrendaResponse, PrendaUpdate
-
-# --- CAPA MODELS (SQLAlchemy para Base de Datos) ---
-from app.models.prenda import Prenda as PrendaDB  # Le ponemos alias para que no choque
-
-# --- CAPA REPOSITORIES ---
+from app.models.prenda import Prenda as PrendaDB
 from app.repositories.prenda_repo import PrendaRepository
-
 from fastapi.responses import StreamingResponse
 
 router = APIRouter()
@@ -37,9 +29,6 @@ async def registrar_prenda(
     return await prenda_repo.create_prenda_completa(db=db, prenda_in=prenda_in)
 
 
-# =========================================================================
-# ENDPOINT Estático: Alertas de Reposición (DEBE IR ANTES DE LA RUTA DINÁMICA)
-# =========================================================================
 @router.get(
     "/alertas/reposicion",
     response_model=List[StockPrendaResponse],
@@ -52,17 +41,9 @@ async def obtener_alertas_reposicion(
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    """
-    Cualquier empleado autenticado en el sistema (Vendedor o Administrador)
-    puede acceder en tiempo real a este reporte desde su puesto de trabajo.
-    """
     alertas = await prenda_repo.get_variantes_bajo_stock(db=db)
     return alertas
 
-
-# =========================================================================
-# ENDPOINT Dinámico: Ver Detalle de Prenda
-# =========================================================================
 @router.get(
     "/{id_prenda}",
     response_model=PrendaResponse,
@@ -83,43 +64,33 @@ async def obtener_prenda(
     return prenda
 
 
-# Ejemplo en tu ruta de listado:
 @router.get("/", response_model=List[PrendaResponse])
 async def listar_prendas(
         offset: int = 0,
         limit: int = 100,
         db: AsyncSession = Depends(get_db)
 ):
-    # Cambiamos Prenda por PrendaDB aquí inside select y selectinload
     query = select(PrendaDB).offset(offset).limit(limit).options(selectinload(PrendaDB.variantes))
 
     result = await db.execute(query)
     return result.scalars().all()
 
 
-@router.patch("/{id_prenda}", response_model=PrendaResponse, status_code=status.HTTP_200_OK)
-async def modificar_prenda(
-        id_prenda: int,
-        prenda_in: PrendaUpdate,
-        db: AsyncSession = Depends(get_db)
+@router.put("/{id_prenda}", response_model=PrendaResponse)
+async def actualizar_prenda(
+    id_prenda: int,
+    prenda_in: PrendaUpdate, # <-- Aquí recibe las variantes, el precio y stock nuevo
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Modifica los datos de una prenda existente (Nombre y/o Precio).
-    """
     prenda_actualizada = await prenda_repo.update(db=db, id_prenda=id_prenda, prenda_update=prenda_in)
-
     if not prenda_actualizada:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No se encontró la prenda con ID {id_prenda}"
+            detail="La prenda que intentas modificar no existe"
         )
-
     return prenda_actualizada
 
 
-# =========================================================================
-# ENDPOINT: Buscar prenda por Código de Barras
-# =========================================================================
 @router.get(
     "/buscar/codigo",
     response_model=PrendaResponse,
@@ -131,10 +102,6 @@ async def obtener_prenda_por_codigo(
     db: AsyncSession = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    """
-    Este endpoint recibe el código que lee el escáner físico. Busca qué variante
-    tiene ese código y te devuelve la prenda completa con sus talles disponibles.
-    """
     prenda = await prenda_repo.get_prenda_by_codigo_barras(db=db, codigo_barras=codigo)
     if not prenda:
         raise HTTPException(
