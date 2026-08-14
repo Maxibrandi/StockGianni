@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Servicio de Base de Datos
+  # Servicio de Base de Datos (Persistente mediante el volumen postgres_data)
   db:
     image: postgres:15-alpine
     container_name: inventario_db_container
@@ -15,7 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # Servicio del Backend Web (FastAPI)
+  # Servicio Backend (FastAPI)
   web:
     build:
       context: .
@@ -27,12 +27,31 @@ services:
     env_file:
       - .env
     environment:
-          - JWT_SECRET=8f9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
-          - JWT_ALGORITHM=HS256
+      - JWT_SECRET=8f9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
+      - JWT_ALGORITHM=HS256
+      - DATABASE_URL=postgresql+asyncpg://inventario_user:mi_password_secreto@db:5432/inventario_db
     volumes:
       - ./app:/code/app
     depends_on:
       - db
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Servicio Frontend (Vue + Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: inventario_frontend_container
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - web
+
 volumes:
   postgres_data:

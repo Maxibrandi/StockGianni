@@ -1,4 +1,6 @@
 import io
+import time
+import random
 from typing import List, Optional
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +24,39 @@ from app.schemas.prenda import PrendaCreate, PrendaUpdate
 
 class PrendaRepository:
 
+    async def create_prenda_completa(self, db: AsyncSession, prenda_in: PrendaCreate) -> Prenda:
+        """
+        Crea una nueva prenda y genera automáticamente códigos de barra únicos para sus variantes.
+        """
+        # 1. Separar datos de la prenda y variantes
+        prenda_data = prenda_in.model_dump(exclude={"variantes"})
+        variantes_data = prenda_in.variantes if prenda_in.variantes else []
+
+        db_prenda = Prenda(**prenda_data)
+        db.add(db_prenda)
+        await db.flush()  # Obtenemos el id_prenda autogenerado antes del commit
+
+        # 2. Iterar y procesar cada variante
+        for v_data in variantes_data:
+            v_dict = v_data.model_dump() if hasattr(v_data, "model_dump") else v_data
+
+            # ✨ AUTOMATIZACIÓN DEL CÓDIGO DE BARRAS ✨
+            if not v_dict.get("codigo_barras"):
+                timestamp = str(int(time.time() * 1000))[-8:]  # Últimos 8 dígitos del tiempo actual
+                random_suffix = str(random.randint(100, 999))  # Evita colisiones si se crean rápido
+                talle_clean = str(v_dict.get('talle', 'X')).replace(" ", "").upper()
+                v_dict["codigo_barras"] = f"PR{db_prenda.id_prenda}T{talle_clean}{timestamp}{random_suffix}"
+
+            db_variante = StockPrenda(
+                id_prenda=db_prenda.id_prenda,
+                **v_dict
+            )
+            db.add(db_variante)
+
+        await db.commit()
+        await db.refresh(db_prenda, attribute_names=["variantes"])
+        return db_prenda
+
     async def get_prenda_by_id(self, db: AsyncSession, id_prenda: int) -> Optional[Prenda]:
         query = (
             select(Prenda)
@@ -41,9 +76,13 @@ class PrendaRepository:
         return result.scalars().all()
 
     async def get_prenda_by_codigo_barras(self, db: AsyncSession, codigo_barras: str) -> Optional[Prenda]:
+        """
+        Busca una variante por código de barras y retorna su prenda con todas sus variantes cargadas.
+        """
         query = (
             select(StockPrenda)
             .where(StockPrenda.codigo_barras == codigo_barras)
+            # Solución correcta de SQLAlchemy para anidar cargas asíncronas en profundidad:
             .options(selectinload(StockPrenda.prenda).selectinload(Prenda.variantes))
         )
         result = await db.execute(query)
@@ -53,7 +92,7 @@ class PrendaRepository:
             return variante.prenda
         return None
 
-    async def generar_pdf_codigos(self, db: AsyncSession, id_prenda: int) -> io.BytesIO:
+    async def generar_pdf_codigos(self, db: AsyncSession, id_prenda: int) -> Optional[io.BytesIO]:
         prenda = await self.get_prenda_by_id(db=db, id_prenda=id_prenda)
         if not prenda or not prenda.variantes:
             return None

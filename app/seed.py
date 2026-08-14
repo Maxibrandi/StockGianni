@@ -24,7 +24,7 @@ async def seed_data():
                 nombre="Máximo Admin",
                 email="admin@gianni.com",
                 password_hash="admin123",
-                rol="ADMINISTRADOR",  # 🔄 CAMBIADO A MAYÚSCULAS para que coincida con 'VENDEDOR'
+                rol="ADMINISTRADOR",
                 activo=True
             )
 
@@ -32,7 +32,7 @@ async def seed_data():
                 nombre="Empleado Gianni",
                 email="ventas@gianni.com",
                 password_hash="ventas123",
-                rol="VENDEDOR",  # <-- Mantenemos en mayúsculas como figuraba en tu log
+                rol="VENDEDOR",
                 activo=True
             )
 
