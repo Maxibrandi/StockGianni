@@ -53,11 +53,14 @@ async def login_user(
 
     token_payload = {
         "sub": usuario.email,
-        "rol": usuario.rol
+        "rol": usuario.rol.value if hasattr(usuario.rol, "value") else str(usuario.rol)
     }
     jwt_string = create_access_token(data=token_payload)
 
     return {
         "access_token": jwt_string,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "rol": usuario.rol.value if hasattr(usuario.rol, "value") else str(usuario.rol),
+        "email": usuario.email,
+        "nombre": usuario.nombre
     }

@@ -1,268 +1,118 @@
 <template>
-  <!-- Contenedor general -->
-  <div class="min-h-screen bg-slate-300 p-4 sm:p-6 font-sans text-black">
-    <div class="max-w-7xl mx-auto space-y-6">
+  <header class="bg-white border-b border-slate-200/80 sticky top-0 z-40 backdrop-blur-md bg-white/90">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 sm:h-20">
 
-      <!-- 1. PANTALLA DE LOGIN CONECTADA A FASTAPI -->
-      <div v-if="!usuarioAutenticado" class="min-h-[85vh] flex items-center justify-center">
-        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl border-4 border-slate-900 space-y-6">
-          <div class="text-center">
-            <h1 class="text-4xl font-black text-black tracking-tight">StockGianni</h1>
-            <p class="text-sm font-black text-slate-800 mt-2">Acceso al Sistema de Inventario</p>
-          </div>
-
-          <form @submit.prevent="iniciarSesion" class="space-y-4">
+        <!-- Logo y Marca -->
+        <div class="flex items-center gap-3 sm:gap-4">
+          <router-link to="/catalogo" class="flex items-center gap-3 group">
+            <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-200">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
             <div>
-              <label class="block text-xs font-black text-black uppercase tracking-wider mb-2">Usuario / Email</label>
-              <input
-                v-model="formularioLogin.username"
-                type="text"
-                placeholder="Ingresá tu usuario registrado"
-                required
-                class="block w-full rounded-xl border-2 border-black p-3 text-black font-black focus:ring-4 focus:ring-indigo-500 focus:outline-none"
-              />
+              <span class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+                Stock<span class="text-indigo-600">Gianni</span>
+              </span>
+              <span class="hidden sm:block text-[10px] uppercase font-bold tracking-widest text-slate-700">Inventario & Punto de Venta</span>
             </div>
-
-            <div>
-              <label class="block text-xs font-black text-black uppercase tracking-wider mb-2">Contraseña</label>
-              <input
-                v-model="formularioLogin.password"
-                type="password"
-                placeholder="••••••••"
-                required
-                class="block w-full rounded-xl border-2 border-black p-3 text-black font-black focus:ring-4 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-
-            <div v-if="errorLogin" class="p-3 bg-red-200 border-2 border-red-700 rounded-xl text-xs font-black text-red-950 text-center">
-              {{ errorLogin }}
-            </div>
-
-            <button
-              type="submit"
-              class="w-full rounded-xl bg-indigo-800 hover:bg-indigo-900 py-3.5 text-sm font-black text-white shadow-lg transition-colors cursor-pointer border-2 border-black"
-            >
-              Ingresar
-            </button>
-          </form>
+          </router-link>
         </div>
-      </div>
 
-      <!-- 2. PANEL PRINCIPAL (SE MANTIENE IGUAL) -->
-      <template v-else>
-        <!-- Header -->
-        <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl shadow-md border-2 border-black">
-          <div>
-            <div class="flex items-center gap-3">
-              <h1 class="text-3xl font-black text-black">Control de Inventario</h1>
+        <!-- Links de Navegación -->
+        <nav class="hidden md:flex items-center gap-1.5">
+          <router-link
+            v-if="esAdmin"
+            to="/dashboard"
+            class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
+            :class="$route.name === 'dashboard' ? 'bg-indigo-50 text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Dashboard
+          </router-link>
+
+          <router-link
+            to="/catalogo"
+            class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
+            :class="$route.name === 'catalogo' ? 'bg-indigo-50 text-indigo-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            Catálogo & Stock
+          </router-link>
+
+          <router-link
+            to="/pos"
+            class="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
+            :class="$route.name === 'ventas' ? 'bg-emerald-50 text-emerald-700 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Punto de Venta (POS)
+          </router-link>
+        </nav>
+
+        <!-- Perfil de Usuario y Acciones -->
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100/80 border border-slate-200/60">
+            <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center uppercase">
+              {{ (usuario.nombre || usuario.email || 'U')[0] }}
+            </div>
+            <div class="text-left">
+              <p class="text-xs font-bold text-slate-800 leading-none truncate max-w-[120px]">{{ usuario.nombre || usuario.email || 'Operador' }}</p>
               <span
-                class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border-2"
-                :class="usuarioAutenticado.rol === 'admin' ? 'bg-purple-200 text-purple-950 border-purple-800' : 'bg-blue-200 text-blue-950 border-blue-800'"
+                class="inline-block mt-0.5 text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.2 rounded"
+                :class="esAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
               >
-                {{ usuarioAutenticado.rol }}
+                {{ usuario.rol }}
               </span>
             </div>
-            <p class="text-sm font-extrabold text-black mt-1">Gestión de productos y ventas en tiempo real.</p>
           </div>
 
-          <div class="flex items-center gap-3">
-            <button
-              v-if="usuarioAutenticado.rol === 'admin'"
-              @click="mostrarModalCrear = true"
-              class="inline-flex items-center justify-center rounded-xl bg-indigo-800 px-5 py-3 text-sm font-black text-white shadow-md hover:bg-indigo-900 transition-colors border-2 border-black cursor-pointer"
-            >
-              + Nueva Prenda
-            </button>
+          <button
+            @click="cerrarSesion"
+            title="Cerrar Sesión"
+            class="p-2 sm:px-3 sm:py-2 rounded-xl text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span class="hidden sm:inline">Salir</span>
+          </button>
+        </div>
 
-            <button
-              @click="cerrarSesion"
-              class="rounded-xl bg-slate-200 hover:bg-slate-300 px-4 py-3 text-xs font-black text-black transition-colors border-2 border-black cursor-pointer"
-            >
-              Cerrar Sesión
-            </button>
-          </div>
-        </header>
-
-        <!-- GANANCIAS REALES (ADMIN) -->
-        <section v-if="usuarioAutenticado.rol === 'admin'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-white p-6 rounded-2xl shadow-md border-2 border-black flex items-center justify-between">
-            <div>
-              <p class="text-xs font-black uppercase tracking-wider text-black">Ganancia Real Hoy</p>
-              <h3 class="text-3xl font-black text-emerald-800 mt-1">${{ gananciasDiarias.toLocaleString('es-AR') }}</h3>
-            </div>
-            <div class="p-3 bg-emerald-200 border-2 border-emerald-800 rounded-xl text-black font-black text-2xl">
-              💵
-            </div>
-          </div>
-
-          <div class="bg-white p-6 rounded-2xl shadow-md border-2 border-black flex items-center justify-between">
-            <div>
-              <p class="text-xs font-black uppercase tracking-wider text-black">Ganancia Real del Mes</p>
-              <h3 class="text-3xl font-black text-indigo-900 mt-1">${{ gananciasMensuales.toLocaleString('es-AR') }}</h3>
-            </div>
-            <div class="p-3 bg-indigo-200 border-2 border-indigo-800 rounded-xl text-black font-black text-2xl">
-              📈
-            </div>
-          </div>
-        </section>
-
-        <!-- Lector, Alertas y Tabla mantienen su código intacto... -->
-        <!-- ... -->
-      </template>
-
+      </div>
     </div>
-  </div>
+  </header>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
-const API_URL = 'http://localhost:8000/api/v1'
+const router = useRouter()
+const route = useRoute()
 
-const usuarioAutenticado = ref(null)
-const formularioLogin = ref({ username: '', password: '' })
-const errorLogin = ref('')
-
-const gananciasDiarias = ref(0)
-const gananciasMensuales = ref(0)
-
-const prendas = ref([])
-const alertasStock = ref([])
-const codigoBusqueda = ref('')
-const mostrarModalCrear = ref(false)
-
-const nuevaPrenda = ref({
-  nombre: '',
-  variantes: [
-    { talle: 'S', precio_venta: 0, stock_actual: 10, stock_minimo: 3 },
-    { talle: 'M', precio_venta: 0, stock_actual: 10, stock_minimo: 3 }
-  ]
+const usuario = computed(() => {
+  try {
+    return JSON.parse(localStorage.getItem('usuario_stock') || '{}')
+  } catch (e) {
+    return {}
+  }
 })
 
-// Función para obtener headers con autenticación Bearer Token
-const getAuthHeaders = () => {
-  const token = usuarioAutenticado.value?.token
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  }
-}
-
-// LOGIN REAL CONTRA LA BASE DE DATOS (FASTAPI OAUTH2)
-const iniciarSesion = async () => {
-  errorLogin.value = ''
-
-  try {
-    // FastAPI OAuth2 requiere form-data (x-www-form-urlencoded)
-    const formData = new URLSearchParams()
-    formData.append('username', formularioLogin.value.username)
-    formData.append('password', formularioLogin.value.password)
-
-    const res = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: formData
-    })
-
-    if (res.ok) {
-      const data = await res.json()
-
-      // Guardar sesión y Token JWT
-      usuarioAutenticado.value = {
-        username: formularioLogin.value.username,
-        token: data.access_token,
-        rol: data.rol || 'admin' // Toma el rol retornado por la BD o asigna admin por defecto
-      }
-
-      localStorage.setItem('usuario_stock', JSON.stringify(usuarioAutenticado.value))
-      await cargarDatos()
-    } else {
-      const errorData = await res.json()
-      errorLogin.value = errorData.detail || 'Usuario o contraseña incorrectos.'
-    }
-  } catch (e) {
-    console.error("Error al autenticar:", e)
-    errorLogin.value = 'No se pudo conectar con el servidor.'
-  }
-}
+const esAdmin = computed(() => {
+  const rol = (usuario.value?.rol || '').toLowerCase()
+  return rol === 'admin' || rol === 'administrador'
+})
 
 const cerrarSesion = () => {
-  usuarioAutenticado.value = null
-  formularioLogin.value = { username: '', password: '' }
   localStorage.removeItem('usuario_stock')
+  router.push('/')
 }
-
-const cargarDatos = async () => {
-  try {
-    const headers = getAuthHeaders()
-
-    const resPrendas = await fetch(`${API_URL}/prendas/`, { headers })
-    if (resPrendas.ok) prendas.value = await resPrendas.json()
-
-    const resAlertas = await fetch(`${API_URL}/prendas/alertas/bajo-stock`, { headers })
-    if (resAlertas.ok) alertasStock.value = await resAlertas.json()
-
-    if (usuarioAutenticado.value?.rol === 'admin') {
-      const resGanancias = await fetch(`${API_URL}/ventas/reporte-ganancias`, { headers })
-      if (resGanancias.ok) {
-        const datos = await resGanancias.json()
-        gananciasDiarias.value = datos.ganancia_diaria
-        gananciasMensuales.value = datos.ganancia_mensual
-      }
-    }
-  } catch (error) {
-    console.error("Error al conectar con la base de datos:", error)
-  }
-}
-
-const guardarPrenda = async () => {
-  try {
-    const response = await fetch(`${API_URL}/prendas/`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(nuevaPrenda.value)
-    })
-
-    if (response.ok) {
-      mostrarModalCrear.value = false
-      nuevaPrenda.value = { nombre: '', variantes: [{ talle: 'S', precio_venta: 0, stock_actual: 10, stock_minimo: 3 }] }
-      await cargarDatos()
-    }
-  } catch (error) {
-    console.error("Error guardando prenda:", error)
-  }
-}
-
-const buscarPorCodigo = async () => {
-  if (!codigoBusqueda.value.trim()) return
-  try {
-    const res = await fetch(`${API_URL}/prendas/codigo/${codigoBusqueda.value.trim()}`, {
-      headers: getAuthHeaders()
-    })
-    if (res.ok) {
-      const prenda = await res.json()
-      alert(`Prenda: ${prenda.nombre}\nVariantes: ${prenda.variantes.length}`)
-    } else {
-      alert("Código no registrado.")
-    }
-  } catch (e) {
-    console.error(e)
-  } finally {
-    codigoBusqueda.value = ''
-  }
-}
-
-const descargarPDF = (idPrenda) => {
-  window.open(`${API_URL}/prendas/${idPrenda}/pdf-codigos`, '_blank')
-}
-
-onMounted(() => {
-  const sesionGuardada = localStorage.getItem('usuario_stock')
-  if (sesionGuardada) {
-    usuarioAutenticado.value = JSON.parse(sesionGuardada)
-    cargarDatos()
-  }
-})
 </script>

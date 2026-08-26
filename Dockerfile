@@ -31,4 +31,4 @@ EXPOSE 8000
 
 # 9. Comando por defecto para iniciar Uvicorn apuntando a la aplicación FastAPI/Flask
 # Se incluye --host 0.0.0.0 para escuchar conexiones externas y --reload para desarrollo en tiempo real
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -2,8 +2,9 @@ import asyncio
 from decimal import Decimal
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import SessionLocal, Base, engine  # <-- Asegúrate de importar Base y engine
-from app.models.usuario import Usuario
+from app.core.database import SessionLocal, Base, engine
+from app.core.security import get_password_hash
+from app.models.usuario import Usuario, RolUsuario
 from app.models.prenda import Prenda
 from app.models.stock import StockPrenda
 
@@ -15,30 +16,40 @@ async def seed_data():
     print("📋 Tablas verificadas / creadas con éxito.")
 
     async with SessionLocal() as db:
-        # 1. GENERAR USUARIOS SEMILLA
-        result_usuarios = await db.execute(select(Usuario).limit(1))
-        if result_usuarios.scalar_one_or_none() is None:
-            print("🌱 Creando usuarios de ejemplo...")
-
+        # 1. GENERAR / ACTUALIZAR USUARIOS SEMILLA
+        res_admin = await db.execute(select(Usuario).where(Usuario.email == "admin@gianni.com"))
+        admin = res_admin.scalar_one_or_none()
+        if not admin:
             admin = Usuario(
                 nombre="Máximo Admin",
                 email="admin@gianni.com",
-                password_hash="admin123",
-                rol="ADMINISTRADOR",
+                password_hash=get_password_hash("admin123"),
+                rol=RolUsuario.ADMINISTRADOR,
                 activo=True
             )
+            db.add(admin)
+            print("🌱 Usuario Admin creado con éxito.")
+        else:
+            admin.password_hash = get_password_hash("admin123")
+            admin.rol = RolUsuario.ADMINISTRADOR
+            admin.activo = True
 
+        res_vendedor = await db.execute(select(Usuario).where(Usuario.email == "ventas@gianni.com"))
+        vendedor = res_vendedor.scalar_one_or_none()
+        if not vendedor:
             vendedor = Usuario(
                 nombre="Empleado Gianni",
                 email="ventas@gianni.com",
-                password_hash="ventas123",
-                rol="VENDEDOR",
+                password_hash=get_password_hash("ventas123"),
+                rol=RolUsuario.VENDEDOR,
                 activo=True
             )
-
-            db.add(admin)
             db.add(vendedor)
-            print("🌱 Usuarios insertados con éxito.")
+            print("🌱 Usuario Vendedor creado con éxito.")
+        else:
+            vendedor.password_hash = get_password_hash("ventas123")
+            vendedor.rol = RolUsuario.VENDEDOR
+            vendedor.activo = True
 
         # 2. GENERAR PRENDAS SEMILLA
         result_prendas = await db.execute(select(Prenda).limit(1))

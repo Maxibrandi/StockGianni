@@ -6,7 +6,16 @@ from app.models.usuario import Usuario
 from app.schemas.venta import VentaCreate, VentaResponse
 from app.services.venta_service import procesar_venta
 
+from app.repositories.reporte_repo import ReporteRepository
+from app.schemas.reporte import ResumenGananciasResponse
+
 router = APIRouter()
+reporte_repo = ReporteRepository()
+
+
+@router.get("/reporte-ganancias", response_model=ResumenGananciasResponse, summary="Resumen de ganancias")
+async def reporte_ganancias_ventas_alias(db: AsyncSession = Depends(get_db)):
+    return await reporte_repo.get_resumen_ganancias(db=db)
 
 
 @router.post(
