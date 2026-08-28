@@ -2,6 +2,30 @@
   <div class="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
     <Navbar />
 
+    <!-- Toast de notificación -->
+    <transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0 translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-2"
+    >
+      <div
+        v-if="toast.visible"
+        class="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl text-sm font-semibold max-w-sm"
+        :class="toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'"
+      >
+        <svg v-if="toast.type === 'success'" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <svg v-else class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{{ toast.message }}</span>
+      </div>
+    </transition>
+
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
 
       <!-- Encabezado Principal y Acciones -->
@@ -26,7 +50,7 @@
         <div class="flex items-center gap-2.5">
           <router-link
             to="/pos"
-            class="px-4 py-2.5 bg-white hover:bg-slate-100/80 text-slate-900 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            class="px-4 py-2.5 bg-white hover:bg-slate-100/80 text-slate-900 font-bold text-xs rounded-xl border border-slate-200 shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -36,7 +60,7 @@
 
           <button
             v-if="esAdmin"
-            @click="mostrarModalCrear = true"
+            @click="abrirModalCrear"
             class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/10 flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,39 +71,46 @@
         </div>
       </div>
 
+      <!-- Estado de Error General -->
+      <div v-if="errorCarga" class="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-sm text-rose-700 font-semibold">
+        <svg class="w-5 h-5 shrink-0 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{{ errorCarga }}</span>
+        <button @click="cargarDatos" class="ml-auto text-xs underline font-bold cursor-pointer hover:no-underline">Reintentar</button>
+      </div>
+
       <!-- Tarjetas de Métricas Rápidas (Solo Admin) -->
       <section v-if="esAdmin" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-white p-6 rounded-2xl shadow-xs flex items-center justify-between">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
-            <p class="text-xs font-black uppercase tracking-wider text-slate-900">Ganancia Real Hoy</p>
-            <h3 class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Ganancia Real Hoy</p>
+            <div v-if="cargando" class="mt-1 h-9 w-36 bg-slate-100 rounded-lg animate-pulse"></div>
+            <h3 v-else class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">
               ${{ Number(gananciasDiarias || 0).toLocaleString('es-AR') }}
             </h3>
           </div>
-          <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xl">
-            💵
-          </div>
+          <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl shrink-0">💵</div>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-xs flex items-center justify-between">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
-            <p class="text-xs font-black uppercase tracking-wider text-slate-900">Ganancia Real del Mes</p>
-            <h3 class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Ganancia Real del Mes</p>
+            <div v-if="cargando" class="mt-1 h-9 w-36 bg-slate-100 rounded-lg animate-pulse"></div>
+            <h3 v-else class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">
               ${{ Number(gananciasMensuales || 0).toLocaleString('es-AR') }}
             </h3>
           </div>
-          <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xl">
-            📈
-          </div>
+          <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl shrink-0">📈</div>
         </div>
       </section>
 
       <!-- Barra de Búsqueda y Filtros -->
-      <section class="bg-white p-5 rounded-2xl shadow-xs">
-        <label for="search-barcode" class="block text-xs font-black text-slate-900 uppercase tracking-wider mb-2">
-          Buscar por Código de Barras o Filtrar por Nombre / Categoría
+      <section class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <label for="search-barcode" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+          Buscar por Código de Barras, Nombre o Categoría
         </label>
-        <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex flex-col sm:flex-row gap-2.5">
           <div class="relative flex-1">
             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,25 +123,28 @@
               @keyup.enter="buscarPorCodigo"
               type="text"
               placeholder="Pase el lector sobre el código o ingrese texto..."
-              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-0 rounded-xl text-slate-900 font-medium text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
             />
           </div>
           <button
             @click="buscarPorCodigo"
-            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shrink-0"
           >
             Buscar
           </button>
           <button
             v-if="filtroActivo"
             @click="limpiarFiltro"
-            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer shrink-0"
           >
-            Limpiar Filtro
+            Limpiar
           </button>
         </div>
         <p v-if="mensajeBusqueda" class="text-xs font-semibold text-indigo-600 mt-2 flex items-center gap-1">
-          <span>ℹ️</span> {{ mensajeBusqueda }}
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {{ mensajeBusqueda }}
         </p>
       </section>
 
@@ -119,9 +153,9 @@
 
         <!-- Alertas Bajo Stock -->
         <div class="lg:col-span-1">
-          <div class="bg-white p-5 rounded-2xl shadow-xs space-y-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
+              <h2 class="text-sm font-black text-slate-900 flex items-center gap-2">
                 <span class="relative flex h-2.5 w-2.5">
                   <span v-if="alertasStock.length > 0" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2.5 w-2.5" :class="alertasStock.length > 0 ? 'bg-rose-500' : 'bg-emerald-500'"></span>
@@ -130,7 +164,15 @@
               </h2>
             </div>
 
-            <div v-if="alertasStock.length === 0" class="py-8 text-center text-slate-400 text-xs font-medium">
+            <!-- Skeleton -->
+            <div v-if="cargando" class="space-y-2">
+              <div v-for="i in 4" :key="i" class="p-3 rounded-xl bg-slate-50 space-y-1.5">
+                <div class="h-3.5 bg-slate-200 rounded animate-pulse w-3/4"></div>
+                <div class="h-3 bg-slate-100 rounded animate-pulse w-1/2"></div>
+              </div>
+            </div>
+
+            <div v-else-if="alertasStock.length === 0" class="py-8 text-center text-slate-400 text-xs font-medium">
               <svg class="w-8 h-8 mx-auto text-emerald-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -140,15 +182,15 @@
             <ul v-else class="divide-y divide-slate-100 max-h-[400px] overflow-y-auto pr-1 space-y-2">
               <li v-for="item in alertasStock" :key="item.id_stock_prenda" class="pt-2 first:pt-0">
                 <div class="p-3 rounded-xl bg-rose-50/60 space-y-1">
-                  <div class="flex justify-between items-center">
-                    <span class="font-extrabold text-slate-900 text-xs">{{ item.prenda?.nombre || 'Prenda' }}</span>
-                    <span class="bg-rose-100 text-rose-700 font-bold text-[10px] px-2 py-0.5 rounded-md uppercase">
-                      Talle {{ item.talle }}
+                  <div class="flex justify-between items-start gap-2">
+                    <span class="font-extrabold text-slate-900 text-xs leading-tight">{{ item.prenda?.nombre || 'Prenda' }}</span>
+                    <span class="bg-rose-100 text-rose-700 font-bold text-[10px] px-2 py-0.5 rounded-md uppercase shrink-0">
+                      {{ item.talle }}
                     </span>
                   </div>
                   <div class="flex justify-between items-center text-[11px] text-slate-500 font-medium">
                     <span>Stock: <strong class="text-rose-600 font-bold">{{ item.stock_actual }}</strong> (Mín: {{ item.stock_minimo }})</span>
-                    <span class="font-mono text-slate-400">{{ item.codigo_barras }}</span>
+                    <span class="font-mono text-slate-400 text-[10px]">{{ item.codigo_barras }}</span>
                   </div>
                 </div>
               </li>
@@ -158,39 +200,59 @@
 
         <!-- Tabla de Prendas -->
         <div class="lg:col-span-2">
-          <div class="bg-white rounded-2xl shadow-xs overflow-hidden">
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="p-4 bg-slate-50/50 flex justify-between items-center border-b border-slate-100">
-              <h2 class="text-base font-black text-slate-900">Catálogo de Prendas ({{ prendasFiltradas.length }})</h2>
+              <h2 class="text-sm font-black text-slate-900">
+                Catálogo de Prendas
+                <span class="ml-1.5 text-slate-400 font-bold">({{ prendasFiltradas.length }})</span>
+              </h2>
             </div>
 
-            <div class="overflow-x-auto">
+            <!-- Skeleton de tabla -->
+            <div v-if="cargando" class="divide-y divide-slate-100">
+              <div v-for="i in 6" :key="i" class="p-4 flex items-center gap-4">
+                <div class="w-8 h-4 bg-slate-100 rounded animate-pulse"></div>
+                <div class="flex-1 space-y-1.5">
+                  <div class="h-3.5 bg-slate-200 rounded animate-pulse w-1/2"></div>
+                  <div class="h-3 bg-slate-100 rounded animate-pulse w-1/3"></div>
+                </div>
+                <div class="flex gap-1.5">
+                  <div class="w-14 h-6 bg-slate-100 rounded-lg animate-pulse"></div>
+                  <div class="w-14 h-6 bg-slate-100 rounded-lg animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="overflow-x-auto">
               <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr class="bg-slate-50/50 text-[11px] font-black uppercase tracking-wider text-slate-900 border-b border-slate-100">
-                    <th class="py-3.5 px-4">ID</th>
-                    <th class="py-3.5 px-4">Nombre / Categoría</th>
-                    <th class="py-3.5 px-4">Tela</th>
-                    <th class="py-3.5 px-4">Variantes (Talle / Stock)</th>
-                    <th v-if="esAdmin" class="py-3.5 px-4 text-right">Acciones</th>
+                  <tr class="bg-slate-50/50 text-[11px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                    <th class="py-3 px-4">ID</th>
+                    <th class="py-3 px-4">Nombre / Categoría</th>
+                    <th class="py-3 px-4 hidden sm:table-cell">Tela</th>
+                    <th class="py-3 px-4">Variantes (Talle / Stock)</th>
+                    <th v-if="esAdmin" class="py-3 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 text-xs font-medium text-slate-700">
                   <tr v-for="prenda in prendasFiltradas" :key="prenda.id_prenda" class="hover:bg-slate-50/80 transition-colors">
-                    <td class="py-3.5 px-4 font-bold text-slate-400">#{{ prenda.id_prenda }}</td>
-                    <td class="py-3.5 px-4 font-extrabold text-slate-900">
-                      {{ prenda.nombre }}
+                    <td class="py-3.5 px-4 font-bold text-slate-300">#{{ prenda.id_prenda }}</td>
+                    <td class="py-3.5 px-4">
+                      <span class="font-extrabold text-slate-900">{{ prenda.nombre }}</span>
                       <span class="block text-[11px] font-medium text-slate-500">{{ prenda.categoria }}</span>
                     </td>
-                    <td class="py-3.5 px-4 text-slate-600 font-semibold">{{ prenda.tipo_tela }}</td>
+                    <td class="py-3.5 px-4 text-slate-600 font-semibold hidden sm:table-cell">{{ prenda.tipo_tela }}</td>
                     <td class="py-3.5 px-4">
                       <div class="flex flex-wrap gap-1.5">
                         <span
                           v-for="v in prenda.variantes"
                           :key="v.id_stock_prenda"
-                          class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold"
-                          :class="v.stock_actual <= v.stock_minimo ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-800'"
+                          class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold"
+                          :class="v.stock_actual <= v.stock_minimo ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200' : 'bg-slate-100 text-slate-700'"
+                          :title="v.stock_actual <= v.stock_minimo ? 'Stock bajo' : ''"
                         >
-                          {{ v.talle }}: <strong class="text-slate-900">{{ v.stock_actual }}u.</strong> (${{ Number(v.precio_venta).toLocaleString('es-AR') }})
+                          {{ v.talle }}: <strong class="text-slate-900">{{ v.stock_actual }}u.</strong>
+                          <span class="text-slate-500 hidden lg:inline">(${{ Number(v.precio_venta).toLocaleString('es-AR') }})</span>
                         </span>
                       </div>
                     </td>
@@ -204,9 +266,15 @@
                       </button>
                     </td>
                   </tr>
-                  <tr v-if="prendasFiltradas.length === 0">
-                    <td colspan="5" class="py-12 text-center text-slate-400 font-medium">
-                      No se encontraron prendas registradas en el inventario.
+                  <tr v-if="prendasFiltradas.length === 0 && !cargando">
+                    <td :colspan="esAdmin ? 5 : 4" class="py-14 text-center">
+                      <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      <p class="text-sm text-slate-400 font-medium">No se encontraron prendas registradas en el inventario.</p>
+                      <button v-if="esAdmin" @click="abrirModalCrear" class="mt-3 text-xs font-bold text-indigo-600 hover:underline cursor-pointer">
+                        + Agregar primera prenda
+                      </button>
                     </td>
                   </tr>
                 </tbody>
@@ -218,87 +286,140 @@
       </div>
 
       <!-- Modal Crear Prenda -->
-      <div v-if="mostrarModalCrear" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
-          <div class="px-6 py-4 flex items-center justify-between bg-slate-50/50 border-b border-slate-100">
-            <h3 class="text-base font-black text-slate-900">Registrar Nueva Prenda</h3>
-            <button @click="mostrarModalCrear = false" class="text-slate-400 hover:text-slate-600 font-bold text-lg p-1">✕</button>
-          </div>
-
-          <form @submit.prevent="guardarPrenda" class="p-6 space-y-4 overflow-y-auto">
-            <div>
-              <label class="block text-xs font-black text-slate-900 uppercase tracking-wider mb-1">Nombre de la Prenda *</label>
-              <input
-                v-model="nuevaPrenda.nombre"
-                type="text" required placeholder="Ej: Camisa Manga Larga"
-                class="w-full px-3.5 py-2.5 bg-slate-50 border-0 rounded-xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-black text-slate-900 uppercase tracking-wider mb-1">Categoría *</label>
-                <input
-                  v-model="nuevaPrenda.categoria"
-                  type="text" required placeholder="Ej: Camisas, Pantalones..."
-                  class="w-full px-3.5 py-2.5 bg-slate-50 border-0 rounded-xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-black text-slate-900 uppercase tracking-wider mb-1">Tipo de Tela *</label>
-                <input
-                  v-model="nuevaPrenda.tipo_tela"
-                  type="text" required placeholder="Ej: Algodón, Denim..."
-                  class="w-full px-3.5 py-2.5 bg-slate-50 border-0 rounded-xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label class="block text-xs font-black text-slate-900 uppercase tracking-wider">Talles, Precios y Cantidades</label>
-                <button type="button" @click="agregarFilaVariante" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer">
-                  + Agregar Talle
+      <transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="mostrarModalCrear"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+          @click.self="mostrarModalCrear = false"
+        >
+          <transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95"
+          >
+            <div v-if="mostrarModalCrear" class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
+              <div class="px-6 py-4 flex items-center justify-between bg-slate-50/70 border-b border-slate-100">
+                <h3 class="text-base font-black text-slate-900">Registrar Nueva Prenda</h3>
+                <button
+                  @click="mostrarModalCrear = false"
+                  class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer"
+                  aria-label="Cerrar modal"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
 
-              <div class="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                <div v-for="(v, idx) in nuevaPrenda.variantes" :key="idx" class="flex items-center gap-2 bg-slate-50 p-2 rounded-xl">
-                  <input v-model="v.talle" type="text" placeholder="Talle" required class="w-16 px-2 py-1.5 bg-white border-0 rounded-lg text-xs font-bold text-slate-900" />
-                  <input v-model.number="v.precio_venta" type="number" step="0.01" placeholder="Precio ($)" required class="w-24 px-2 py-1.5 bg-white border-0 rounded-lg text-xs font-bold text-slate-900" />
-                  <input v-model.number="v.stock_actual" type="number" placeholder="Stock" required class="w-16 px-2 py-1.5 bg-white border-0 rounded-lg text-xs font-bold text-slate-900" />
-                  <input v-model.number="v.stock_minimo" type="number" placeholder="Mínimo" required class="w-16 px-2 py-1.5 bg-white border-0 rounded-lg text-xs font-bold text-slate-900" />
-                  <button type="button" @click="nuevaPrenda.variantes.splice(idx, 1)" class="text-rose-600 font-bold text-xs p-1 hover:bg-rose-50 rounded-md cursor-pointer">✕</button>
+              <form @submit.prevent="guardarPrenda" class="p-6 space-y-4 overflow-y-auto">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nombre de la Prenda *</label>
+                  <input
+                    v-model="nuevaPrenda.nombre"
+                    type="text" required placeholder="Ej: Camisa Manga Larga"
+                    class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  />
                 </div>
-              </div>
-            </div>
 
-            <div v-if="errorCrear" class="p-3 bg-rose-50 rounded-xl text-xs font-semibold text-rose-700 text-center">
-              {{ errorCrear }}
-            </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Categoría *</label>
+                    <input
+                      v-model="nuevaPrenda.categoria"
+                      type="text" required placeholder="Ej: Camisas"
+                      class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tipo de Tela *</label>
+                    <input
+                      v-model="nuevaPrenda.tipo_tela"
+                      type="text" required placeholder="Ej: Algodón"
+                      class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
 
-            <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
-              <button type="button" @click="mostrarModalCrear = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors">
-                Cancelar
-              </button>
-              <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer">
-                Guardar Prenda
-              </button>
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Talles, Precios y Cantidades</label>
+                    <button type="button" @click="agregarFilaVariante" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer flex items-center gap-1">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Agregar Talle
+                    </button>
+                  </div>
+
+                  <div class="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    <div v-if="nuevaPrenda.variantes.length === 0" class="py-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl">
+                      Sin variantes. Haga clic en "Agregar Talle".
+                    </div>
+                    <div v-for="(v, idx) in nuevaPrenda.variantes" :key="idx" class="flex items-center gap-2 bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
+                      <input v-model="v.talle" type="text" placeholder="Talle" required class="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                      <input v-model.number="v.precio_venta" type="number" step="0.01" min="0" placeholder="Precio $" required class="flex-1 min-w-0 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                      <input v-model.number="v.stock_actual" type="number" min="0" placeholder="Stock" required class="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                      <input v-model.number="v.stock_minimo" type="number" min="0" placeholder="Mín." required class="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                      <button type="button" @click="nuevaPrenda.variantes.splice(idx, 1)" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0" aria-label="Eliminar variante">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="errorCrear" class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700 flex items-center gap-2">
+                  <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {{ errorCrear }}
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-2.5">
+                  <button
+                    type="button"
+                    @click="mostrarModalCrear = false"
+                    class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    :disabled="guardando"
+                    class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <svg v-if="guardando" class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    {{ guardando ? 'Guardando...' : 'Guardar Prenda' }}
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          </transition>
         </div>
-      </div>
+      </transition>
 
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
 import Navbar from '../components/PrendasManager.vue'
 
-const router = useRouter()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 const usuarioAutenticado = ref(null)
@@ -307,9 +428,11 @@ const esAdmin = computed(() => {
   return rol === 'admin' || rol === 'administrador'
 })
 
+const cargando = ref(false)
+const errorCarga = ref('')
+const guardando = ref(false)
 const gananciasDiarias = ref(0)
 const gananciasMensuales = ref(0)
-
 const prendas = ref([])
 const alertasStock = ref([])
 const codigoBusqueda = ref('')
@@ -317,6 +440,17 @@ const mensajeBusqueda = ref('')
 const filtroActivo = ref(false)
 const mostrarModalCrear = ref(false)
 const errorCrear = ref('')
+
+const toast = reactive({ visible: false, message: '', type: 'success' })
+let toastTimer = null
+
+const showToast = (message, type = 'success') => {
+  if (toastTimer) clearTimeout(toastTimer)
+  toast.message = message
+  toast.type = type
+  toast.visible = true
+  toastTimer = setTimeout(() => { toast.visible = false }, 3500)
+}
 
 const nuevaPrenda = ref({
   nombre: '',
@@ -334,6 +468,20 @@ const getAuthHeaders = () => {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   }
+}
+
+const abrirModalCrear = () => {
+  errorCrear.value = ''
+  nuevaPrenda.value = {
+    nombre: '',
+    categoria: '',
+    tipo_tela: '',
+    variantes: [
+      { talle: 'S', precio_venta: 15000, stock_actual: 10, stock_minimo: 3 },
+      { talle: 'M', precio_venta: 15000, stock_actual: 10, stock_minimo: 3 }
+    ]
+  }
+  mostrarModalCrear.value = true
 }
 
 const agregarFilaVariante = () => {
@@ -354,33 +502,40 @@ const prendasFiltradas = computed(() => {
 })
 
 const cargarDatos = async () => {
+  cargando.value = true
+  errorCarga.value = ''
   try {
     const headers = getAuthHeaders()
 
-    // 1. Cargar prendas
-    const resPrendas = await fetch(`${API_URL}/prendas/`, { headers })
-    if (resPrendas.ok) prendas.value = await resPrendas.json()
+    const requests = [
+      fetch(`${API_URL}/prendas/`, { headers }),
+      fetch(`${API_URL}/prendas/alertas/reposicion`, { headers })
+    ]
 
-    // 2. Cargar alertas
-    const resAlertas = await fetch(`${API_URL}/prendas/alertas/reposicion`, { headers })
-    if (resAlertas.ok) alertasStock.value = await resAlertas.json()
-
-    // 3. Cargar ganancias si es admin
     if (esAdmin.value) {
-      const resGanancias = await fetch(`${API_URL}/reportes/resumen`, { headers })
-      if (resGanancias.ok) {
-        const datos = await resGanancias.json()
-        gananciasDiarias.value = datos.ganancia_diaria
-        gananciasMensuales.value = datos.ganancia_mensual
-      }
+      requests.push(fetch(`${API_URL}/reportes/resumen`, { headers }))
+    }
+
+    const [resPrendas, resAlertas, resGanancias] = await Promise.all(requests)
+
+    if (resPrendas?.ok) prendas.value = await resPrendas.json()
+    if (resAlertas?.ok) alertasStock.value = await resAlertas.json()
+    if (resGanancias?.ok) {
+      const datos = await resGanancias.json()
+      gananciasDiarias.value = datos.ganancia_diaria
+      gananciasMensuales.value = datos.ganancia_mensual
     }
   } catch (error) {
-    console.error("Error al conectar con el servidor:", error)
+    console.error('Error al conectar con el servidor:', error)
+    errorCarga.value = 'No se pudo conectar con el servidor. Verifique que el backend esté activo.'
+  } finally {
+    cargando.value = false
   }
 }
 
 const guardarPrenda = async () => {
   errorCrear.value = ''
+  guardando.value = true
   try {
     const response = await fetch(`${API_URL}/prendas/`, {
       method: 'POST',
@@ -390,20 +545,17 @@ const guardarPrenda = async () => {
 
     if (response.ok) {
       mostrarModalCrear.value = false
-      nuevaPrenda.value = {
-        nombre: '',
-        categoria: '',
-        tipo_tela: '',
-        variantes: [{ talle: 'S', precio_venta: 15000, stock_actual: 10, stock_minimo: 3 }]
-      }
+      showToast('Prenda registrada correctamente.', 'success')
       await cargarDatos()
     } else {
       const err = await response.json().catch(() => ({}))
       errorCrear.value = err.detail || 'Error al guardar la prenda. Verifique los datos.'
     }
   } catch (error) {
-    console.error("Error guardando prenda:", error)
+    console.error('Error guardando prenda:', error)
     errorCrear.value = 'Error de conexión con el servidor.'
+  } finally {
+    guardando.value = false
   }
 }
 

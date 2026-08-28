@@ -1,214 +1,338 @@
 <template>
-  <div class="min-h-screen bg-slate-300 p-4 font-sans text-black">
-    <div class="max-w-7xl mx-auto space-y-4">
+  <div class="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <Navbar />
 
-      <!-- Header y Navegación -->
-      <header class="bg-white p-4 rounded-2xl shadow-md border-2 border-black flex flex-col sm:flex-row justify-between items-center gap-3">
-        <div>
-          <h1 class="text-2xl font-black text-black">Caja / Punto de Venta (POS)</h1>
-          <p class="text-xs font-bold text-slate-700">Operador: {{ usuario?.nombre || usuario?.email || 'Vendedor' }} ({{ usuario?.rol }})</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <router-link
-            v-if="esAdmin"
-            to="/dashboard"
-            class="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 border-2 border-black rounded-xl font-black text-xs"
-          >
-            📊 Dashboard
-          </router-link>
-          <router-link
-            to="/catalogo"
-            class="px-4 py-2 bg-slate-200 hover:bg-slate-300 border-2 border-black rounded-xl font-black text-xs"
-          >
-            🏷️ Catálogo & Stock
-          </router-link>
-          <button
-            @click="cerrarSesion"
-            class="px-4 py-2 bg-slate-200 hover:bg-slate-300 border-2 border-black rounded-xl font-black text-xs"
-          >
-            Cerrar Sesión
-          </button>
-        </div>
-      </header>
-
-      <!-- Mensajes de Estado / Alertas -->
-      <div v-if="mensajeExito" class="p-4 bg-emerald-100 border-2 border-emerald-800 rounded-xl text-emerald-950 font-black text-sm flex justify-between items-center">
-        <span>✅ {{ mensajeExito }}</span>
-        <button @click="mensajeExito = ''" class="text-emerald-950 font-bold">✕</button>
+    <!-- Toast de notificación -->
+    <transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0 translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-2"
+    >
+      <div
+        v-if="toast.visible"
+        class="fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-xl text-sm font-semibold max-w-sm"
+        :class="toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'"
+        role="alert"
+        aria-live="polite"
+      >
+        <svg v-if="toast.type === 'success'" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <svg v-else class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{{ toast.message }}</span>
       </div>
+    </transition>
 
-      <div v-if="mensajeError" class="p-4 bg-red-100 border-2 border-red-800 rounded-xl text-red-950 font-black text-sm flex justify-between items-center">
-        <span>❌ {{ mensajeError }}</span>
-        <button @click="mensajeError = ''" class="text-red-950 font-bold">✕</button>
-      </div>
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Columna Izquierda: Escáner y Búsqueda -->
+        <!-- Columna Izquierda: Escáner y Catálogo -->
         <div class="lg:col-span-2 space-y-4">
-          <!-- Entrada Escáner -->
-          <div class="bg-white p-5 rounded-2xl shadow-md border-2 border-black space-y-2">
-            <label class="block text-xs font-black uppercase tracking-wider">Escanear Código de Barras (Lector)</label>
-            <div class="flex gap-2">
-              <input
-                ref="inputEscaner"
-                v-model="codigoEscaneado"
-                @keyup.enter="agregarAlCarritoPorCodigo"
-                type="text"
-                placeholder="Pase la lectora sobre el código o ingréselo..."
-                autofocus
-                class="w-full p-3 border-2 border-black rounded-xl font-black text-lg focus:ring-4 focus:ring-indigo-500 focus:outline-none"
-              />
+
+          <!-- Encabezado POS -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Punto de Venta</h1>
+              <p class="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
+                Operador: <strong class="text-slate-700">{{ usuario?.nombre || usuario?.email || 'Vendedor' }}</strong>
+                <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" :class="esAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'">
+                  {{ usuario?.rol || 'vendedor' }}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Escáner de Código de Barras -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <label for="scanner-input" class="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Escanear Código de Barras
+            </label>
+            <div class="flex gap-2.5">
+              <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <!-- Ícono escáner -->
+                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h1M4 10h1M4 14h1M4 18h1M8 4v16M12 4v16M16 4v16M20 6h-1M20 10h-1M20 14h-1M20 18h-1" />
+                  </svg>
+                </div>
+                <input
+                  id="scanner-input"
+                  ref="inputEscaner"
+                  v-model="codigoEscaneado"
+                  @keyup.enter="agregarAlCarritoPorCodigo"
+                  type="text"
+                  placeholder="Pase la lectora o ingrese el código..."
+                  autofocus
+                  class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-400"
+                />
+              </div>
               <button
                 @click="agregarAlCarritoPorCodigo"
-                class="px-5 bg-indigo-800 hover:bg-indigo-900 text-white font-black text-sm rounded-xl border-2 border-black cursor-pointer"
+                :disabled="!codigoEscaneado.trim() || buscandoCodigo"
+                class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl border border-indigo-700 shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shrink-0"
               >
-                Agregar
+                <svg v-if="buscandoCodigo" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>{{ buscandoCodigo ? 'Buscando...' : 'Agregar' }}</span>
               </button>
             </div>
           </div>
 
-          <!-- Selección Manual de Prendas -->
-          <div class="bg-white p-4 rounded-2xl shadow-md border-2 border-black">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-black uppercase text-slate-700">O Seleccionar Prenda del Catálogo:</span>
-              <button @click="mostrarSelectorManual = !mostrarSelectorManual" class="text-xs font-black text-indigo-900 underline">
-                {{ mostrarSelectorManual ? 'Ocultar Catálogo Rápido' : 'Mostrar Catálogo Rápido' }}
-              </button>
-            </div>
+          <!-- Selección Manual del Catálogo -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <button
+              @click="mostrarSelectorManual = !mostrarSelectorManual"
+              class="w-full flex items-center justify-between p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                Seleccionar del Catálogo
+              </span>
+              <svg
+                class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                :class="mostrarSelectorManual ? 'rotate-180' : ''"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-            <div v-if="mostrarSelectorManual" class="space-y-3 pt-2 border-t-2 border-slate-200">
-              <input
-                v-model="filtroCatalogo"
-                type="text"
-                placeholder="Filtrar por nombre o tela..."
-                class="w-full p-2 border-2 border-black rounded-lg text-xs font-black"
-              />
-              <div class="max-h-48 overflow-y-auto divide-y-2 divide-slate-100">
-                <div
-                  v-for="prenda in catalogoFiltrado"
-                  :key="prenda.id_prenda"
-                  class="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-black"
-                >
-                  <div>
-                    <span>{{ prenda.nombre }} ({{ prenda.categoria }} - {{ prenda.tipo_tela }})</span>
+            <transition
+              enter-active-class="transition duration-200 ease-out"
+              enter-from-class="opacity-0 -translate-y-2"
+              enter-to-class="opacity-100 translate-y-0"
+              leave-active-class="transition duration-150 ease-in"
+              leave-from-class="opacity-100 translate-y-0"
+              leave-to-class="opacity-0 -translate-y-2"
+            >
+              <div v-if="mostrarSelectorManual" class="border-t border-slate-100 p-4 space-y-3">
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                   </div>
-                  <div class="flex flex-wrap gap-1.5">
-                    <button
-                      v-for="v in prenda.variantes"
-                      :key="v.id_stock_prenda"
-                      @click="agregarVarianteDirecta(prenda, v)"
-                      :disabled="v.stock_actual <= 0"
-                      class="px-2.5 py-1 rounded-lg border-2 border-black text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-indigo-100"
-                      :class="v.stock_actual <= v.stock_minimo ? 'bg-red-100' : 'bg-slate-100'"
-                    >
-                      {{ v.talle }} (${{ v.precio_venta }}) [{{ v.stock_actual }} u.]
-                    </button>
+                  <input
+                    v-model="filtroCatalogo"
+                    type="text"
+                    placeholder="Filtrar por nombre, categoría o tela..."
+                    class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                <!-- Skeleton catálogo -->
+                <div v-if="cargandoCatalogo" class="space-y-2">
+                  <div v-for="i in 4" :key="i" class="py-3 flex items-center gap-3">
+                    <div class="flex-1 h-3.5 bg-slate-100 rounded animate-pulse"></div>
+                    <div class="flex gap-1.5">
+                      <div class="w-16 h-7 bg-slate-100 rounded-lg animate-pulse"></div>
+                      <div class="w-16 h-7 bg-slate-100 rounded-lg animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else-if="catalogoFiltrado.length === 0" class="py-6 text-center text-xs text-slate-400 font-medium">
+                  No se encontraron prendas que coincidan con la búsqueda.
+                </div>
+
+                <div v-else class="max-h-52 overflow-y-auto divide-y divide-slate-100 -mx-1 px-1">
+                  <div
+                    v-for="prenda in catalogoFiltrado"
+                    :key="prenda.id_prenda"
+                    class="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                  >
+                    <div class="min-w-0">
+                      <span class="text-xs font-bold text-slate-900 truncate block">{{ prenda.nombre }}</span>
+                      <span class="text-[10px] text-slate-500 font-medium">{{ prenda.categoria }} · {{ prenda.tipo_tela }}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 shrink-0">
+                      <button
+                        v-for="v in prenda.variantes"
+                        :key="v.id_stock_prenda"
+                        @click="agregarVarianteDirecta(prenda, v)"
+                        :disabled="v.stock_actual <= 0"
+                        class="px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        :class="v.stock_actual <= 0 ? 'bg-slate-50 border-slate-200 text-slate-400' : v.stock_actual <= v.stock_minimo ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700'"
+                        :title="v.stock_actual <= 0 ? 'Sin stock' : `${v.stock_actual} unidades disponibles`"
+                      >
+                        {{ v.talle }} · ${{ Number(v.precio_venta).toLocaleString('es-AR') }}
+                        <span class="ml-1 opacity-60">[{{ v.stock_actual }}]</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </transition>
           </div>
 
-          <!-- Items del Carrito -->
-          <div class="bg-white rounded-2xl shadow-md border-2 border-black overflow-hidden">
-            <div class="p-4 bg-slate-200 border-b-2 border-black font-black text-sm flex justify-between items-center">
-              <span>Detalle de la Venta ({{ totalItemsEnCarrito }} unidades)</span>
+          <!-- Carrito / Detalle de Venta -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <h2 class="text-sm font-black text-slate-900 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Detalle de Venta
+                <span class="text-slate-400 font-semibold text-xs">({{ totalItemsEnCarrito }} {{ totalItemsEnCarrito === 1 ? 'prenda' : 'prendas' }})</span>
+              </h2>
               <button
                 v-if="carrito.length > 0"
                 @click="carrito = []"
-                class="text-xs font-black text-red-700 hover:underline"
+                class="text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
               >
-                Vaciar Carrito
+                Vaciar carrito
               </button>
             </div>
 
             <div class="overflow-x-auto">
-              <table class="w-full text-left font-black text-sm">
+              <table class="w-full text-left">
                 <thead>
-                  <tr class="bg-slate-100 border-b-2 border-black text-xs uppercase">
-                    <th class="p-3">Producto</th>
-                    <th class="p-3">Precio</th>
-                    <th class="p-3 text-center">Cant.</th>
-                    <th class="p-3">Subtotal</th>
-                    <th class="p-3 text-right">Acción</th>
+                  <tr class="text-[11px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 bg-slate-50/50">
+                    <th class="py-3 px-4">Producto</th>
+                    <th class="py-3 px-4 hidden sm:table-cell">Precio</th>
+                    <th class="py-3 px-4 text-center">Cant.</th>
+                    <th class="py-3 px-4 text-right">Subtotal</th>
+                    <th class="py-3 px-4 w-10"></th>
                   </tr>
                 </thead>
-                <tbody class="divide-y-2 divide-slate-200">
-                  <tr v-for="(item, idx) in carrito" :key="item.id_stock_prenda">
-                    <td class="p-3">
-                      {{ item.nombre }}
-                      <span class="block text-xs text-slate-600 font-bold">Talle: {{ item.talle }} | Código: {{ item.codigo_barras }}</span>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="(item, idx) in carrito" :key="item.id_stock_prenda" class="hover:bg-slate-50/50 transition-colors">
+                    <td class="py-3 px-4">
+                      <span class="text-sm font-bold text-slate-900 block">{{ item.nombre }}</span>
+                      <span class="text-[11px] text-slate-500 font-medium">
+                        Talle {{ item.talle }} &bull; <span class="font-mono">{{ item.codigo_barras }}</span>
+                      </span>
                     </td>
-                    <td class="p-3">${{ Number(item.precio).toLocaleString('es-AR') }}</td>
-                    <td class="p-3 text-center">
-                      <div class="inline-flex items-center gap-1 border-2 border-black rounded-lg p-0.5">
-                        <button
-                          @click="cambiarCantidad(item, -1)"
-                          class="px-2 py-0.5 font-black hover:bg-slate-200 rounded text-xs"
-                        >-</button>
-                        <span class="px-2 font-black text-sm">{{ item.cantidad }}</span>
-                        <button
-                          @click="cambiarCantidad(item, 1)"
-                          class="px-2 py-0.5 font-black hover:bg-slate-200 rounded text-xs"
-                        >+</button>
+                    <td class="py-3 px-4 text-xs font-semibold text-slate-700 hidden sm:table-cell">
+                      ${{ Number(item.precio).toLocaleString('es-AR') }}
+                    </td>
+                    <td class="py-3 px-4">
+                      <div class="flex items-center justify-center">
+                        <div class="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-xs">
+                          <button
+                            @click="cambiarCantidad(item, -1)"
+                            class="px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors cursor-pointer"
+                            aria-label="Restar"
+                          >−</button>
+                          <span class="px-3 py-1.5 font-black text-sm text-slate-900 border-x border-slate-200 min-w-[32px] text-center">{{ item.cantidad }}</span>
+                          <button
+                            @click="cambiarCantidad(item, 1)"
+                            class="px-2.5 py-1.5 text-slate-600 hover:bg-slate-100 font-bold text-sm transition-colors cursor-pointer"
+                            aria-label="Sumar"
+                          >+</button>
+                        </div>
                       </div>
                     </td>
-                    <td class="p-3 font-black text-emerald-800">${{ (item.precio * item.cantidad).toLocaleString('es-AR') }}</td>
-                    <td class="p-3 text-right">
-                      <button @click="carrito.splice(idx, 1)" class="text-red-700 font-black hover:bg-red-100 p-1.5 rounded-lg border border-transparent hover:border-red-700">✕</button>
+                    <td class="py-3 px-4 text-right">
+                      <span class="text-sm font-black text-emerald-700">
+                        ${{ (item.precio * item.cantidad).toLocaleString('es-AR') }}
+                      </span>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                      <button
+                        @click="carrito.splice(idx, 1)"
+                        class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                        aria-label="Eliminar del carrito"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </td>
                   </tr>
                   <tr v-if="carrito.length === 0">
-                    <td colspan="5" class="p-8 text-center text-slate-600 font-bold">
-                      🛒 El carrito está vacío. Escanee un código de barras o seleccione una prenda arriba.
+                    <td colspan="5" class="py-12 text-center">
+                      <svg class="w-10 h-10 mx-auto text-slate-300 mb-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      <p class="text-sm text-slate-400 font-medium">El carrito está vacío.</p>
+                      <p class="text-xs text-slate-400 mt-1">Escanee un código o seleccione una prenda del catálogo.</p>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
+
         </div>
 
-        <!-- Columna Derecha: Resumen de Cobro -->
+        <!-- Columna Derecha: Resumen y Cobro -->
         <div class="lg:col-span-1">
-          <div class="bg-white p-6 rounded-2xl shadow-md border-2 border-black space-y-6 sticky top-4">
-            <h2 class="text-xl font-black border-b-2 border-black pb-2">Resumen de Cobro</h2>
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5 sticky top-24">
+            <h2 class="text-lg font-black text-slate-900 flex items-center gap-2">
+              <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Resumen de Cobro
+            </h2>
 
-            <div class="space-y-3">
-              <div class="flex justify-between text-sm font-bold text-slate-700">
-                <span>Líneas de productos:</span>
-                <span>{{ carrito.length }}</span>
+            <!-- Detalle de importes -->
+            <div class="space-y-2.5 text-sm">
+              <div class="flex justify-between text-slate-600 font-medium">
+                <span>Líneas de productos</span>
+                <span class="font-bold text-slate-900">{{ carrito.length }}</span>
               </div>
-              <div class="flex justify-between text-sm font-bold text-slate-700">
-                <span>Total de prendas:</span>
-                <span>{{ totalItemsEnCarrito }}</span>
+              <div class="flex justify-between text-slate-600 font-medium">
+                <span>Total de prendas</span>
+                <span class="font-bold text-slate-900">{{ totalItemsEnCarrito }}</span>
               </div>
-              <div class="pt-3 border-t-2 border-slate-200 flex justify-between items-center text-base font-black">
-                <span>Total a Cobrar:</span>
-                <span class="text-3xl font-black text-emerald-800">${{ totalVenta.toLocaleString('es-AR') }}</span>
+              <div class="border-t border-dashed border-slate-200 pt-2.5 flex justify-between items-end">
+                <span class="font-bold text-slate-700">Total a cobrar</span>
+                <span class="text-3xl font-black text-emerald-700 tracking-tight">
+                  ${{ totalVenta.toLocaleString('es-AR') }}
+                </span>
               </div>
             </div>
 
+            <!-- Mensaje de error inline -->
+            <div v-if="mensajeError" class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700 flex items-start gap-2">
+              <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{{ mensajeError }}</span>
+            </div>
+
+            <!-- Botón Confirmar Venta -->
             <button
               @click="procesarVenta"
               :disabled="carrito.length === 0 || procesando"
-              class="w-full py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-lg rounded-xl border-2 border-black shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-base rounded-xl shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5"
             >
-              {{ procesando ? 'Procesando...' : 'Confirmar Venta' }}
+              <svg v-if="procesando" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              {{ procesando ? 'Procesando venta...' : 'Confirmar Venta' }}
             </button>
+
+            <!-- Nota de ayuda -->
+            <p v-if="carrito.length === 0" class="text-xs text-slate-400 text-center font-medium">
+              Agregue prendas al carrito para habilitar el cobro.
+            </p>
           </div>
         </div>
 
       </div>
-
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import Navbar from '../components/PrendasManager.vue'
 
 const router = useRouter()
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
@@ -220,8 +344,20 @@ const catalogoPrendas = ref([])
 const filtroCatalogo = ref('')
 const mostrarSelectorManual = ref(false)
 const procesando = ref(false)
-const mensajeExito = ref('')
+const buscandoCodigo = ref(false)
+const cargandoCatalogo = ref(false)
 const mensajeError = ref('')
+
+const toast = reactive({ visible: false, message: '', type: 'success' })
+let toastTimer = null
+
+const showToast = (message, type = 'success') => {
+  if (toastTimer) clearTimeout(toastTimer)
+  toast.message = message
+  toast.type = type
+  toast.visible = true
+  toastTimer = setTimeout(() => { toast.visible = false }, 4000)
+}
 
 const usuario = computed(() => {
   try {
@@ -244,11 +380,6 @@ const getAuthHeaders = () => {
   }
 }
 
-const cerrarSesion = () => {
-  localStorage.removeItem('usuario_stock')
-  router.push('/')
-}
-
 const totalVenta = computed(() => {
   return carrito.value.reduce((acc, item) => acc + (Number(item.precio) * item.cantidad), 0)
 })
@@ -268,19 +399,21 @@ const catalogoFiltrado = computed(() => {
 })
 
 const cargarCatalogo = async () => {
+  cargandoCatalogo.value = true
   try {
     const res = await fetch(`${API_URL}/prendas/`, { headers: getAuthHeaders() })
     if (res.ok) {
       catalogoPrendas.value = await res.json()
     }
   } catch (e) {
-    console.error("Error al cargar catálogo:", e)
+    console.error('Error al cargar catálogo:', e)
+  } finally {
+    cargandoCatalogo.value = false
   }
 }
 
 const agregarVarianteDirecta = (prenda, variante) => {
   mensajeError.value = ''
-  mensajeExito.value = ''
 
   const itemExistente = carrito.value.find(i => i.id_stock_prenda === variante.id_stock_prenda)
 
@@ -306,7 +439,7 @@ const agregarVarianteDirecta = (prenda, variante) => {
 const cambiarCantidad = (item, delta) => {
   mensajeError.value = ''
   if (delta > 0 && item.cantidad + delta > item.stock_actual) {
-    mensajeError.value = `Stock insuficiente. Disponibles: ${item.stock_actual}`
+    mensajeError.value = `Sin más stock disponible para ${item.nombre} (Talle ${item.talle}). Máximo: ${item.stock_actual}`
     return
   }
   item.cantidad += delta
@@ -321,7 +454,7 @@ const agregarAlCarritoPorCodigo = async () => {
   if (!code) return
 
   mensajeError.value = ''
-  mensajeExito.value = ''
+  buscandoCodigo.value = true
 
   try {
     const res = await fetch(`${API_URL}/prendas/buscar/codigo?codigo=${encodeURIComponent(code)}`, {
@@ -330,11 +463,10 @@ const agregarAlCarritoPorCodigo = async () => {
 
     if (res.ok) {
       const prenda = await res.json()
-      // Encontrar la variante exacta escaneada
       const variante = prenda.variantes.find(v => v.codigo_barras === code) || prenda.variantes[0]
 
       if (!variante) {
-        mensajeError.value = "No se encontraron talles disponibles para esta prenda."
+        mensajeError.value = 'No se encontraron talles disponibles para esta prenda.'
         return
       }
 
@@ -345,12 +477,13 @@ const agregarAlCarritoPorCodigo = async () => {
 
       agregarVarianteDirecta(prenda, variante)
     } else {
-      mensajeError.value = `Código de barras "${code}" no registrado en el inventario.`
+      mensajeError.value = `Código "${code}" no registrado en el inventario.`
     }
   } catch (e) {
     console.error(e)
-    mensajeError.value = "Error de conexión al buscar código de barras."
+    mensajeError.value = 'Error de conexión al buscar el código de barras.'
   } finally {
+    buscandoCodigo.value = false
     codigoEscaneado.value = ''
     if (inputEscaner.value) inputEscaner.value.focus()
   }
@@ -360,7 +493,6 @@ const procesarVenta = async () => {
   if (carrito.value.length === 0) return
 
   mensajeError.value = ''
-  mensajeExito.value = ''
   procesando.value = true
 
   try {
@@ -379,16 +511,16 @@ const procesarVenta = async () => {
 
     if (res.ok) {
       const ventaRegistrada = await res.json()
-      mensajeExito.value = `Venta #${ventaRegistrada.id_venta} registrada con éxito por $${Number(ventaRegistrada.total).toLocaleString('es-AR')}.`
+      showToast(`✅ Venta #${ventaRegistrada.id_venta} registrada por $${Number(ventaRegistrada.total).toLocaleString('es-AR')}`, 'success')
       carrito.value = []
       await cargarCatalogo()
     } else {
       const err = await res.json().catch(() => ({}))
-      mensajeError.value = err.detail || "Error al procesar la venta. Verifique disponibilidad de stock."
+      mensajeError.value = err.detail || 'Error al procesar la venta. Verifique disponibilidad de stock.'
     }
   } catch (e) {
-    console.error("Error al registrar venta:", e)
-    mensajeError.value = "Error de conexión con el servidor."
+    console.error('Error al registrar venta:', e)
+    mensajeError.value = 'Error de conexión con el servidor.'
   } finally {
     procesando.value = false
   }
