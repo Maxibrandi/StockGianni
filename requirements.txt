@@ -27,3 +27,6 @@ python-barcode==0.15.1
 
 #PDFs
 reportlab==4.2.2
+
+# Supabase Client
+supabase==2.4.3

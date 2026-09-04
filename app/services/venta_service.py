@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from app.models.venta import Venta
 from app.models.detalle_venta import DetalleVenta
 from app.models.stock import StockPrenda
+from app.models.prenda import Prenda as PrendaDB
 from app.schemas.venta import VentaCreate
 
 
@@ -62,3 +63,57 @@ async def procesar_venta(db: AsyncSession, venta_in: VentaCreate, id_usuario: in
     )
     result_final = await db.execute(query_final)
     return result_final.scalar_one()
+
+
+async def procesar_cambio(db: AsyncSession, cambio_in, id_usuario: int) -> dict:
+    # Buscar variante que sale (la que devuelve el cliente y vuelve al stock)
+    result_sale = await db.execute(select(StockPrenda).where(StockPrenda.id_stock_prenda == cambio_in.id_stock_prenda_sale))
+    variante_sale = result_sale.scalar_one_or_none()
+
+    if not variante_sale:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"La variante con ID {cambio_in.id_stock_prenda_sale} no existe."
+        )
+
+    # Buscar variante que entra (la que se lleva el cliente y sale del stock)
+    result_entra = await db.execute(select(StockPrenda).where(StockPrenda.id_stock_prenda == cambio_in.id_stock_prenda_entra))
+    variante_entra = result_entra.scalar_one_or_none()
+
+    if not variante_entra:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"La variante con ID {cambio_in.id_stock_prenda_entra} no existe."
+        )
+
+    if variante_entra.stock_actual < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Sin stock disponible para la variante ID {cambio_in.id_stock_prenda_entra}."
+        )
+
+    # Buscar nombres de prendas padre
+    result_prenda_sale = await db.execute(select(PrendaDB).where(PrendaDB.id_prenda == variante_sale.id_prenda))
+    prenda_sale = result_prenda_sale.scalar_one_or_none()
+
+    result_prenda_entra = await db.execute(select(PrendaDB).where(PrendaDB.id_prenda == variante_entra.id_prenda))
+    prenda_entra = result_prenda_entra.scalar_one_or_none()
+
+    nombre_devuelta = f"{prenda_sale.nombre} (talle {variante_sale.talle})" if prenda_sale else f"Variante ID {variante_sale.id_stock_prenda}"
+    nombre_entregada = f"{prenda_entra.nombre} (talle {variante_entra.talle})" if prenda_entra else f"Variante ID {variante_entra.id_stock_prenda}"
+
+    # Actualizar stock
+    variante_sale.stock_actual += 1   # Devuelve prenda -> reingresa al inventario
+    variante_entra.stock_actual -= 1  # Lleva prenda nueva -> descuenta del inventario
+
+    # Calcular diferencia de precio (positivo: cliente abona diferencia, negativo: a favor del cliente)
+    diferencia = variante_entra.precio_venta - variante_sale.precio_venta
+
+    await db.commit()
+
+    return {
+        "mensaje": "Cambio de prenda registrado exitosamente.",
+        "prenda_devuelta": nombre_devuelta,
+        "prenda_entregada": nombre_entregada,
+        "diferencia_precio": diferencia,
+    }

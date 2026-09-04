@@ -317,6 +317,19 @@
               {{ procesando ? 'Procesando venta...' : 'Confirmar Venta' }}
             </button>
 
+            <!-- Separador y Botón Cambio de Prenda -->
+            <div class="border-t border-slate-100 pt-4">
+              <button
+                @click="abrirModalCambio"
+                class="w-full py-3 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-sm rounded-xl border border-amber-200 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+              >
+                <svg class="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                Cambio de Prenda
+              </button>
+            </div>
+
             <!-- Nota de ayuda -->
             <p v-if="carrito.length === 0" class="text-xs text-slate-400 text-center font-medium">
               Agregue prendas al carrito para habilitar el cobro.
@@ -326,6 +339,192 @@
 
       </div>
     </div>
+
+    <!-- Modal Cambio de Prenda -->
+    <transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="mostrarModalCambio"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+        @click.self="mostrarModalCambio = false"
+      >
+        <transition
+          enter-active-class="transition duration-200 ease-out"
+          enter-from-class="opacity-0 scale-95"
+          enter-to-class="opacity-100 scale-100"
+        >
+          <div v-if="mostrarModalCambio" class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
+            <!-- Header modal -->
+            <div class="px-6 py-4 flex items-center justify-between bg-amber-50 border-b border-amber-100">
+              <h3 class="text-base font-black text-amber-900 flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                Cambio de Prenda
+              </h3>
+              <button @click="mostrarModalCambio = false" class="text-amber-600 hover:text-amber-800 hover:bg-amber-100 p-1.5 rounded-lg transition-colors cursor-pointer">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="p-6 space-y-5 overflow-y-auto">
+              <!-- Búsqueda prenda DEVUELTA (vuelve a stock) -->
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  1. Prenda que DEVUELVE el cliente (vuelve al stock)
+                </label>
+                <div class="flex gap-2">
+                  <input
+                    v-model="cambioCodigoSale"
+                    @keyup.enter="buscarPrendaCambioSale"
+                    type="text"
+                    placeholder="Escanear código de barra..."
+                    class="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
+                  />
+                  <button @click="buscarPrendaCambioSale" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shrink-0">Buscar</button>
+                </div>
+                <!-- Selector manual prenda devuelta -->
+                <div v-if="!cambioVarianteSale" class="mt-2 max-h-36 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-50 p-1">
+                  <div v-for="prenda in catalogoPrendas" :key="prenda.id_prenda" class="px-2.5 py-1.5">
+                    <p class="text-xs font-bold text-slate-700">{{ prenda.nombre }}</p>
+                    <div class="flex flex-wrap gap-1 mt-1">
+                      <button
+                        v-for="v in prenda.variantes"
+                        :key="v.id_stock_prenda"
+                        @click="seleccionarVarianteSale(prenda, v)"
+                        class="px-2 py-0.5 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer bg-slate-100 border-slate-200 text-slate-700 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700"
+                      >
+                        {{ v.talle }} (${{ Number(v.precio_venta).toLocaleString('es-AR') }})
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="cambioVarianteSale" class="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-black text-amber-900">{{ cambioVarianteSale.nombre }}</p>
+                    <p class="text-xs text-amber-700">Talle {{ cambioVarianteSale.talle }} &bull; ${{ Number(cambioVarianteSale.precio).toLocaleString('es-AR') }}</p>
+                  </div>
+                  <button @click="cambioVarianteSale = null; cambioCodigoSale = ''" class="text-amber-600 hover:text-rose-600 p-1 rounded-lg cursor-pointer font-bold">✕</button>
+                </div>
+              </div>
+
+              <!-- Flecha indicadora -->
+              <div class="flex items-center justify-center">
+                <div class="p-1.5 bg-slate-100 rounded-full text-slate-400">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Búsqueda prenda LLEVA (sale de stock) -->
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  2. Prenda de CAMBIO que lleva el cliente (sale de stock)
+                </label>
+                <div class="flex gap-2">
+                  <input
+                    v-model="cambioCodigoEntra"
+                    @keyup.enter="buscarPrendaCambioEntra"
+                    type="text"
+                    placeholder="Escanear código de barra..."
+                    class="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
+                  />
+                  <button @click="buscarPrendaCambioEntra" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shrink-0">Buscar</button>
+                </div>
+                <!-- Selector manual prenda de cambio -->
+                <div v-if="!cambioVarianteEntra" class="mt-2 max-h-36 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-50 p-1">
+                  <div v-for="prenda in catalogoPrendas" :key="prenda.id_prenda" class="px-2.5 py-1.5">
+                    <p class="text-xs font-bold text-slate-700">{{ prenda.nombre }}</p>
+                    <div class="flex flex-wrap gap-1 mt-1">
+                      <button
+                        v-for="v in prenda.variantes"
+                        :key="v.id_stock_prenda"
+                        @click="seleccionarVarianteEntra(prenda, v)"
+                        :disabled="v.stock_actual <= 0"
+                        class="px-2 py-0.5 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        :class="v.stock_actual <= 0 ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700'"
+                      >
+                        {{ v.talle }} (${{ Number(v.precio_venta).toLocaleString('es-AR') }}) [{{ v.stock_actual }}]
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="cambioVarianteEntra" class="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-black text-indigo-900">{{ cambioVarianteEntra.nombre }}</p>
+                    <p class="text-xs text-indigo-700">Talle {{ cambioVarianteEntra.talle }} &bull; ${{ Number(cambioVarianteEntra.precio).toLocaleString('es-AR') }}</p>
+                  </div>
+                  <button @click="cambioVarianteEntra = null; cambioCodigoEntra = ''" class="text-indigo-600 hover:text-rose-600 p-1 rounded-lg cursor-pointer font-bold">✕</button>
+                </div>
+              </div>
+
+              <!-- Resumen de Diferencia de Precio -->
+              <div v-if="cambioVarianteSale && cambioVarianteEntra" class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <div class="flex justify-between items-center text-xs text-slate-600">
+                  <span>Prenda devuelta:</span>
+                  <span class="font-bold text-slate-900">- ${{ Number(cambioVarianteSale.precio).toLocaleString('es-AR') }}</span>
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-600">
+                  <span>Prenda de cambio:</span>
+                  <span class="font-bold text-slate-900">+ ${{ Number(cambioVarianteEntra.precio).toLocaleString('es-AR') }}</span>
+                </div>
+                <div class="border-t border-slate-200 pt-2 mt-1 flex justify-between items-center">
+                  <span class="font-black text-sm text-slate-800">
+                    {{ diferenciaPrecios > 0 ? 'Diferencia a cobrar:' : (diferenciaPrecios < 0 ? 'Diferencia a favor del cliente:' : 'Sin diferencia de precio') }}
+                  </span>
+                  <span
+                    class="text-xl font-black"
+                    :class="diferenciaPrecios > 0 ? 'text-emerald-700' : (diferenciaPrecios < 0 ? 'text-amber-600' : 'text-slate-700')"
+                  >
+                    {{ diferenciaPrecios >= 0 ? '+' : '' }}${{ Number(diferenciaPrecios).toLocaleString('es-AR') }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Error cambio -->
+              <div v-if="errorCambio" class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700 flex items-center gap-2">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{{ errorCambio }}</span>
+              </div>
+
+              <!-- Botones de accion -->
+              <div class="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  @click="mostrarModalCambio = false"
+                  class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  @click="confirmarCambio"
+                  :disabled="!cambioVarianteSale || !cambioVarianteEntra || procesandoCambio"
+                  class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+                >
+                  <svg v-if="procesandoCambio" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>{{ procesandoCambio ? 'Procesando...' : 'Confirmar Cambio' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -347,6 +546,126 @@ const procesando = ref(false)
 const buscandoCodigo = ref(false)
 const cargandoCatalogo = ref(false)
 const mensajeError = ref('')
+
+// --- Estado modal cambio de prenda ---
+const mostrarModalCambio = ref(false)
+const cambioCodigoSale = ref('')
+const cambioCodigoEntra = ref('')
+const cambioVarianteSale = ref(null)
+const cambioVarianteEntra = ref(null)
+const procesandoCambio = ref(false)
+const errorCambio = ref('')
+
+const diferenciaPrecios = computed(() => {
+  if (!cambioVarianteSale.value || !cambioVarianteEntra.value) return 0
+  return Number(cambioVarianteEntra.value.precio) - Number(cambioVarianteSale.value.precio)
+})
+
+const abrirModalCambio = () => {
+  cambioCodigoSale.value = ''
+  cambioCodigoEntra.value = ''
+  cambioVarianteSale.value = null
+  cambioVarianteEntra.value = null
+  errorCambio.value = ''
+  mostrarModalCambio.value = true
+}
+
+const seleccionarVarianteSale = (prenda, variante) => {
+  errorCambio.value = ''
+  cambioVarianteSale.value = {
+    id_stock_prenda: variante.id_stock_prenda,
+    nombre: prenda.nombre,
+    talle: variante.talle,
+    precio: Number(variante.precio_venta || 0)
+  }
+}
+
+const seleccionarVarianteEntra = (prenda, variante) => {
+  errorCambio.value = ''
+  cambioVarianteEntra.value = {
+    id_stock_prenda: variante.id_stock_prenda,
+    nombre: prenda.nombre,
+    talle: variante.talle,
+    precio: Number(variante.precio_venta || 0)
+  }
+}
+
+const buscarPrendaCambioSale = async () => {
+  const code = cambioCodigoSale.value.trim()
+  if (!code) return
+  errorCambio.value = ''
+  try {
+    const res = await fetch(`${API_URL}/prendas/buscar/codigo?codigo=${encodeURIComponent(code)}`, { headers: getAuthHeaders() })
+    if (res.ok) {
+      const prenda = await res.json()
+      const v = prenda.variantes.find(x => x.codigo_barras === code) || prenda.variantes[0]
+      if (v) {
+        seleccionarVarianteSale(prenda, v)
+      } else {
+        errorCambio.value = 'No se encontró talle para este código.'
+      }
+    } else {
+      errorCambio.value = `Código "${code}" no encontrado en inventario.`
+    }
+  } catch {
+    errorCambio.value = 'Error de conexión al buscar el código.'
+  }
+}
+
+const buscarPrendaCambioEntra = async () => {
+  const code = cambioCodigoEntra.value.trim()
+  if (!code) return
+  errorCambio.value = ''
+  try {
+    const res = await fetch(`${API_URL}/prendas/buscar/codigo?codigo=${encodeURIComponent(code)}`, { headers: getAuthHeaders() })
+    if (res.ok) {
+      const prenda = await res.json()
+      const v = prenda.variantes.find(x => x.codigo_barras === code) || prenda.variantes[0]
+      if (v) {
+        if (v.stock_actual <= 0) {
+          errorCambio.value = `Sin stock disponible para ${prenda.nombre} (Talle ${v.talle}).`
+          return
+        }
+        seleccionarVarianteEntra(prenda, v)
+      } else {
+        errorCambio.value = 'No se encontró talle para este código.'
+      }
+    } else {
+      errorCambio.value = `Código "${code}" no encontrado en inventario.`
+    }
+  } catch {
+    errorCambio.value = 'Error de conexión al buscar el código.'
+  }
+}
+
+const confirmarCambio = async () => {
+  if (!cambioVarianteSale.value || !cambioVarianteEntra.value) return
+  errorCambio.value = ''
+  procesandoCambio.value = true
+  try {
+    const res = await fetch(`${API_URL}/ventas/cambio`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        id_stock_prenda_sale: cambioVarianteSale.value.id_stock_prenda,
+        id_stock_prenda_entra: cambioVarianteEntra.value.id_stock_prenda
+      })
+    })
+    if (res.ok) {
+      const resultado = await res.json()
+      mostrarModalCambio.value = false
+      showToast(`✅ ${resultado.mensaje}`, 'success')
+      await cargarCatalogo()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      errorCambio.value = err.detail || 'Error al procesar el cambio.'
+    }
+  } catch {
+    errorCambio.value = 'Error de conexión con el servidor.'
+  } finally {
+    procesandoCambio.value = false
+  }
+}
 
 const toast = reactive({ visible: false, message: '', type: 'success' })
 let toastTimer = null

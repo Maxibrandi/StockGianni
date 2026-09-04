@@ -13,14 +13,14 @@ from app.core.database import engine, Base  # Ajusta la ruta de importación si 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Iniciando la aplicación FastAPI y sincronizando tablas con PostgreSQL...")
+    print("Iniciando la aplicacion FastAPI y sincronizando tablas con PostgreSQL...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     try:
         await seed_data()
     except Exception as e:
-        print(f"❌ Error al ejecutar el seed (o los datos ya existen): {e}")
+        print(f"Error al ejecutar el seed (o los datos ya existen): {e}")
     yield
 
 
@@ -49,3 +49,7 @@ app.include_router(reportes_router, prefix="/api/v1", tags=["Reportes"])
 @app.get("/", tags=["Root"])
 async def root():
     return {"message": "API del Sistema de Inventario operando con éxito"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

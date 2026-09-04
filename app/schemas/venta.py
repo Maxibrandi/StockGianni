@@ -39,3 +39,16 @@ class VentaResponse(BaseModel):
 
     # Configuración nativa de Pydantic v2
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class CambioPrendaCreate(BaseModel):
+    id_stock_prenda_sale: int = Field(..., description="ID de la variante que el cliente devuelve (vuelve al stock)")
+    id_stock_prenda_entra: int = Field(..., description="ID de la variante que el cliente lleva (sale del stock)")
+
+
+class CambioPrendaResponse(BaseModel):
+    mensaje: str
+    prenda_devuelta: str
+    prenda_entregada: str
+    diferencia_precio: Decimal
+    model_config = ConfigDict(from_attributes=True)

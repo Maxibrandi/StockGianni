@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.usuario import Usuario
-from app.schemas.venta import VentaCreate, VentaResponse
-from app.services.venta_service import procesar_venta
+from app.schemas.venta import VentaCreate, VentaResponse, CambioPrendaCreate, CambioPrendaResponse
+from app.services.venta_service import procesar_venta, procesar_cambio
 
 from app.repositories.reporte_repo import ReporteRepository
 from app.schemas.reporte import ResumenGananciasResponse
@@ -40,3 +40,23 @@ async def registrar_venta(
     )
 
     return nueva_venta
+
+
+@router.post(
+    "/cambio",
+    response_model=CambioPrendaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Registrar un cambio de prenda",
+    description="El cliente devuelve una prenda (vuelve al stock) y lleva otra en cambio (sale del stock). "
+                "Se calcula y registra la diferencia de precio entre ambas prendas."
+)
+async def registrar_cambio(
+        cambio_in: CambioPrendaCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user: Usuario = Depends(get_current_user)
+):
+    return await procesar_cambio(
+        db=db,
+        cambio_in=cambio_in,
+        id_usuario=current_user.id_usuario
+    )

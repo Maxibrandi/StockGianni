@@ -97,9 +97,25 @@
           <div>
             <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Ganancia Real del Mes</p>
             <div v-if="cargando" class="mt-1 h-9 w-36 bg-slate-100 rounded-lg animate-pulse"></div>
-            <h3 v-else class="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">
-              ${{ Number(gananciasMensuales || 0).toLocaleString('es-AR') }}
-            </h3>
+            <div v-else class="flex items-center gap-2 mt-1">
+              <h3 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                {{ mostrarGananciaMes ? `$${Number(gananciasMensuales || 0).toLocaleString('es-AR')}` : '••••••' }}
+              </h3>
+              <button
+                @click="mostrarGananciaMes = !mostrarGananciaMes"
+                class="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                :title="mostrarGananciaMes ? 'Ocultar monto' : 'Mostrar monto'"
+                type="button"
+              >
+                <svg v-if="mostrarGananciaMes" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" />
+                </svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl shrink-0">📈</div>
         </div>
@@ -257,13 +273,22 @@
                       </div>
                     </td>
                     <td v-if="esAdmin" class="py-3.5 px-4 text-right">
-                      <button
-                        @click="descargarPDF(prenda.id_prenda)"
-                        title="Imprimir etiquetas"
-                        class="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1"
-                      >
-                        🖨️ <span class="hidden sm:inline">PDF</span>
-                      </button>
+                      <div class="flex items-center justify-end gap-1.5">
+                        <button
+                          @click="abrirModalEditar(prenda)"
+                          title="Modificar prenda"
+                          class="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1"
+                        >
+                          ✏️ <span class="hidden sm:inline">Editar</span>
+                        </button>
+                        <button
+                          @click="descargarPDF(prenda.id_prenda)"
+                          title="Imprimir etiquetas"
+                          class="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1"
+                        >
+                          🖨️ <span class="hidden sm:inline">PDF</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr v-if="prendasFiltradas.length === 0 && !cargando">
@@ -297,7 +322,7 @@
         <div
           v-if="mostrarModalCrear"
           class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
-          @click.self="mostrarModalCrear = false"
+          @click.self="cerrarModal"
         >
           <transition
             enter-active-class="transition duration-200 ease-out"
@@ -309,9 +334,9 @@
           >
             <div v-if="mostrarModalCrear" class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] flex flex-col">
               <div class="px-6 py-4 flex items-center justify-between bg-slate-50/70 border-b border-slate-100">
-                <h3 class="text-base font-black text-slate-900">Registrar Nueva Prenda</h3>
+                <h3 class="text-base font-black text-slate-900">{{ idPrendaEditando ? 'Modificar Prenda' : 'Registrar Nueva Prenda' }}</h3>
                 <button
-                  @click="mostrarModalCrear = false"
+                  @click="cerrarModal"
                   class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-1.5 rounded-lg transition-colors cursor-pointer"
                   aria-label="Cerrar modal"
                 >
@@ -353,7 +378,7 @@
                 <div>
                   <div class="flex items-center justify-between mb-2">
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Talles, Precios y Cantidades</label>
-                    <button type="button" @click="agregarFilaVariante" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer flex items-center gap-1">
+                    <button v-if="!idPrendaEditando" type="button" @click="agregarFilaVariante" class="text-xs font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer flex items-center gap-1">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                       </svg>
@@ -366,11 +391,11 @@
                       Sin variantes. Haga clic en "Agregar Talle".
                     </div>
                     <div v-for="(v, idx) in nuevaPrenda.variantes" :key="idx" class="flex items-center gap-2 bg-slate-50 border border-slate-100 p-2.5 rounded-xl">
-                      <input v-model="v.talle" type="text" placeholder="Talle" required class="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                      <input v-model="v.talle" type="text" placeholder="Talle" :disabled="!!idPrendaEditando" required class="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-500" />
                       <input v-model.number="v.precio_venta" type="number" step="0.01" min="0" placeholder="Precio $" required class="flex-1 min-w-0 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                       <input v-model.number="v.stock_actual" type="number" min="0" placeholder="Stock" required class="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                       <input v-model.number="v.stock_minimo" type="number" min="0" placeholder="Mín." required class="w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
-                      <button type="button" @click="nuevaPrenda.variantes.splice(idx, 1)" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0" aria-label="Eliminar variante">
+                      <button v-if="!idPrendaEditando" type="button" @click="nuevaPrenda.variantes.splice(idx, 1)" class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0" aria-label="Eliminar variante">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -389,7 +414,7 @@
                 <div class="pt-4 border-t border-slate-100 flex justify-end gap-2.5">
                   <button
                     type="button"
-                    @click="mostrarModalCrear = false"
+                    @click="cerrarModal"
                     class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                   >
                     Cancelar
@@ -403,7 +428,7 @@
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {{ guardando ? 'Guardando...' : 'Guardar Prenda' }}
+                    {{ guardando ? 'Guardando...' : (idPrendaEditando ? 'Guardar Cambios' : 'Guardar Prenda') }}
                   </button>
                 </div>
               </form>
@@ -433,12 +458,14 @@ const errorCarga = ref('')
 const guardando = ref(false)
 const gananciasDiarias = ref(0)
 const gananciasMensuales = ref(0)
+const mostrarGananciaMes = ref(false)
 const prendas = ref([])
 const alertasStock = ref([])
 const codigoBusqueda = ref('')
 const mensajeBusqueda = ref('')
 const filtroActivo = ref(false)
 const mostrarModalCrear = ref(false)
+const idPrendaEditando = ref(null)
 const errorCrear = ref('')
 
 const toast = reactive({ visible: false, message: '', type: 'success' })
@@ -470,8 +497,15 @@ const getAuthHeaders = () => {
   }
 }
 
+const cerrarModal = () => {
+  mostrarModalCrear.value = false
+  idPrendaEditando.value = null
+  errorCrear.value = ''
+}
+
 const abrirModalCrear = () => {
   errorCrear.value = ''
+  idPrendaEditando.value = null
   nuevaPrenda.value = {
     nombre: '',
     categoria: '',
@@ -480,6 +514,24 @@ const abrirModalCrear = () => {
       { talle: 'S', precio_venta: 15000, stock_actual: 10, stock_minimo: 3 },
       { talle: 'M', precio_venta: 15000, stock_actual: 10, stock_minimo: 3 }
     ]
+  }
+  mostrarModalCrear.value = true
+}
+
+const abrirModalEditar = (prenda) => {
+  errorCrear.value = ''
+  idPrendaEditando.value = prenda.id_prenda
+  nuevaPrenda.value = {
+    nombre: prenda.nombre,
+    categoria: prenda.categoria,
+    tipo_tela: prenda.tipo_tela,
+    variantes: prenda.variantes.map(v => ({
+      id_stock_prenda: v.id_stock_prenda,
+      talle: v.talle,
+      precio_venta: Number(v.precio_venta),
+      stock_actual: Number(v.stock_actual),
+      stock_minimo: Number(v.stock_minimo)
+    }))
   }
   mostrarModalCrear.value = true
 }
@@ -537,19 +589,37 @@ const guardarPrenda = async () => {
   errorCrear.value = ''
   guardando.value = true
   try {
-    const response = await fetch(`${API_URL}/prendas/`, {
-      method: 'POST',
+    const esModificacion = !!idPrendaEditando.value
+    const url = esModificacion ? `${API_URL}/prendas/${idPrendaEditando.value}` : `${API_URL}/prendas/`
+    const method = esModificacion ? 'PUT' : 'POST'
+
+    const payload = esModificacion
+      ? {
+          nombre: nuevaPrenda.value.nombre,
+          categoria: nuevaPrenda.value.categoria,
+          tipo_tela: nuevaPrenda.value.tipo_tela,
+          variantes: nuevaPrenda.value.variantes.map(v => ({
+            id_stock_prenda: v.id_stock_prenda,
+            precio_venta: v.precio_venta,
+            stock_actual: v.stock_actual,
+            stock_minimo: v.stock_minimo
+          }))
+        }
+      : nuevaPrenda.value
+
+    const response = await fetch(url, {
+      method,
       headers: getAuthHeaders(),
-      body: JSON.stringify(nuevaPrenda.value)
+      body: JSON.stringify(payload)
     })
 
     if (response.ok) {
-      mostrarModalCrear.value = false
-      showToast('Prenda registrada correctamente.', 'success')
+      cerrarModal()
+      showToast(esModificacion ? 'Prenda modificada correctamente.' : 'Prenda registrada correctamente.', 'success')
       await cargarDatos()
     } else {
       const err = await response.json().catch(() => ({}))
-      errorCrear.value = err.detail || 'Error al guardar la prenda. Verifique los datos.'
+      errorCrear.value = err.detail || (esModificacion ? 'Error al modificar la prenda.' : 'Error al guardar la prenda. Verifique los datos.')
     }
   } catch (error) {
     console.error('Error guardando prenda:', error)
