@@ -15,7 +15,6 @@ class Prenda(Base):
     tipo_tela: Mapped[str] = mapped_column(String(50), nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    # ❌ SE ELIMINÓ LA COLUMNA codigo_barras DE AQUÍ
 
     # Una prenda general puede tener distintos talles y códigos de barra
     variantes: Mapped[List["StockPrenda"]] = relationship(

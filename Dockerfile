@@ -1,34 +1,33 @@
-# 1. Usar una imagen oficial de Python en su versión slim (ligera y segura)
+# 1. Usar una imagen oficial de Python en su versión slim
 FROM python:3.11-slim
 
 # 2. Definir variables de entorno para optimizar Python dentro del contenedor
-# Evita que Python escriba archivos .pyc en el disco
 ENV PYTHONDONTWRITEBYTECODE=1
-# Evita que Python guarde en buffer las salidas de consola (logs inmediatos)
 ENV PYTHONUNBUFFERED=1
 
-# 3. Establecer el directorio de trabajo dentro del contenedor
+# 3. Establecer el directorio de trabajo
 WORKDIR /code
 
-# 4. Instalar dependencias del sistema necesarias si se requiere compilar algo (ej: para algunas extensiones de psycopg2/asyncpg)
+# 4. Instalar dependencias del sistema requeridas para libpq (driver de PostgreSQL)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 5. Copiar únicamente el archivo de requerimientos primero
+# 5. Copiar el archivo de requerimientos
 COPY requirements.txt /code/
 
-# 6. Instalar las dependencias de Python sin almacenar caché para reducir el tamaño de la imagen
+# 6. Instalar dependencias
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 7. Copiar el resto del código de la aplicación
+# 7. Copiar el código de la aplicación
 COPY ./app /code/app
 
-# 8. Exponer el puerto en el que correrá la aplicación
+# 8. Exponer el puerto predeterminado (informativo)
 EXPOSE 8000
 
-# 9. Comando por defecto para iniciar Uvicorn apuntando a la aplicación FastAPI/Flask
-# Se incluye --host 0.0.0.0 para escuchar conexiones externas y --reload para desarrollo en tiempo real
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# 9. Comando de inicio para producción:
+# - Se usa la variable $PORT si el host en la nube la provee; si no, por defecto usa 8000.
+# - Se remueve la bandera --reload.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
