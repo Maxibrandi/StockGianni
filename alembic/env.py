@@ -1,49 +1,42 @@
 import asyncio
-from sqlalchemy.ext.asyncio import async_engine_from_config
-
 from logging.config import fileConfig
+import sys
+from pathlib import Path
 
 from alembic import context
-from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # ------------------------------------------------------------------
-# CONFIGURACIÓN PERSONALIZADA: Importación de Ajustes y Modelos ORM
+# CONFIGURACIÓN DE PATHS Y MODELOS
 # ------------------------------------------------------------------
+# Añadir el directorio raíz al path para importar el módulo app
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from app.core.config import settings
 from app.core.database import Base
-import app.models
-from app.models.venta import Venta
-from app.models.usuario import Usuario
 
-
-target_metadata = Base.metadata
-
-# Es CRUCIAL importar todos los modelos explícitamente para el --autogenerate
+# Importar explícitamente todos los modelos para autogenerate de Alembic
 from app.models.usuario import Usuario
 from app.models.prenda import Prenda
 from app.models.stock import StockPrenda
 from app.models.venta import Venta
 from app.models.detalle_venta import DetalleVenta
 
-# ------------------------------------------------------------------
+target_metadata = Base.metadata
 
-# This is the Alembic Config object, which provides access to the values within the .ini file in use.
+# Configuración de logs desde alembic.ini
 config = context.config
-
-# Interpret the config file for Python logging. This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# ------------------------------------------------------------------
-# MODIFICACIÓN: Apuntar la metadata hacia nuestros modelos mapeados
-# ------------------------------------------------------------------
-target_metadata = Base.metadata
 
-
+# ------------------------------------------------------------------
+# MIGRACIONES OFFLINE
+# ------------------------------------------------------------------
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
-    url = settings.DATABASE_URL
+    """Ejecuta migraciones en modo 'offline'."""
+    url = settings.ASYNC_DATABASE_URL
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -62,12 +55,15 @@ def do_run_migrations(connection):
         context.run_migrations()
 
 
+# ------------------------------------------------------------------
+# MIGRACIONES ONLINE (ASÍNCRONAS)
+# ------------------------------------------------------------------
 async def run_migrations_online() -> None:
-    """Run migrations in 'online' mode using an async connection."""
+    """Ejecuta migraciones en modo 'online' usando el engine asíncrono."""
     configuration = config.get_section(config.config_ini_section) or {}
 
-    # Usamos directamente la URL asíncrona de la configuración de tu App
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+    # Forzar el uso de ASYNC_DATABASE_URL que garantiza el driver postgresql+asyncpg://
+    configuration["sqlalchemy.url"] = settings.ASYNC_DATABASE_URL
 
     connectable = async_engine_from_config(
         configuration,
@@ -81,8 +77,10 @@ async def run_migrations_online() -> None:
     await connectable.dispose()
 
 
+# ------------------------------------------------------------------
+# PUNTO DE ENTRADA
+# ------------------------------------------------------------------
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    # Ejecutamos la migración online de forma asíncrona
     asyncio.run(run_migrations_online())
