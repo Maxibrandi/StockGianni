@@ -4,11 +4,14 @@ from pydantic_settings import BaseSettings
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+
 class Settings(BaseSettings):
     DATABASE_URL: str
-    SECRET_KEY: str = "tu_clave_secreta_super_segura"  # O JWT_SECRET según como lo llames
+
+    # 🌟 ATRIBUTOS DE SEGURIDAD JWT Requeridos
+    JWT_SECRET: str = "clave_secreta_super_segura_para_desarrollo_123"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60  # 🌟 ATRIBUTO FALTANTE AGREGADO AQUÍ
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
@@ -18,5 +21,6 @@ class Settings(BaseSettings):
         elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return url
+
 
 settings = Settings()
