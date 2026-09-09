@@ -23,30 +23,7 @@
       <!-- Tarjeta Principal de Inicio de Sesión -->
       <div class="bg-slate-900/90 backdrop-blur-xl p-7 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-6">
 
-        <!-- Selector Rápido de Cuenta Demo -->
-        <div class="space-y-2">
-          <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Acceso Rápido Demo</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              @click="seleccionarRol('admin')"
-              :class="creds.username === 'admin@gianni.com' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300 font-bold' : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200'"
-              class="px-3 py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <span>👑 Admin</span>
-            </button>
-            <button
-              type="button"
-              @click="seleccionarRol('vendedor')"
-              :class="creds.username === 'ventas@gianni.com' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300 font-bold' : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200'"
-              class="px-3 py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <span>🛒 Vendedor</span>
-            </button>
-          </div>
-        </div>
-
-        <form @submit.prevent="handleLogin" class="space-y-4">
+        <form @submit.prevent="handleLogin" class="space-y-4" autocomplete="off">
           <div>
             <label class="block text-xs font-bold text-slate-300 mb-1.5">Correo Electrónico / Usuario</label>
             <div class="relative">
@@ -58,6 +35,8 @@
               <input
                 v-model="creds.username"
                 type="email"
+                name="user_email_clean"
+                autocomplete="off"
                 required
                 placeholder="ejemplo@gianni.com"
                 class="w-full pl-10 pr-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white font-medium text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -76,6 +55,8 @@
               <input
                 v-model="creds.password"
                 :type="mostrarPassword ? 'text' : 'password'"
+                name="user_pass_clean"
+                autocomplete="new-password"
                 required
                 placeholder="••••••••"
                 class="w-full pl-10 pr-10 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white font-medium text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
@@ -140,14 +121,6 @@ const creds = ref({ username: '', password: '' })
 const mostrarPassword = ref(false)
 const cargando = ref(false)
 const error = ref('')
-
-const seleccionarRol = (rol) => {
-  if (rol === 'admin') {
-    creds.value = { username: 'admin@gianni.com', password: 'admin123' }
-  } else {
-    creds.value = { username: 'ventas@gianni.com', password: 'ventas123' }
-  }
-}
 
 const handleLogin = async () => {
   error.value = ''
