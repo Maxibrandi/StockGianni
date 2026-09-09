@@ -306,69 +306,76 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import Navbar from '../components/PrendasManager.vue'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
-const router = useRouter()
 
-// 🌟 Inicializar vacío para que no cargue datos por defecto
-const creds = ref({ username: '', password: '' })
-
-const mostrarPassword = ref(false)
 const cargando = ref(false)
-const error = ref('')
+const errorCarga = ref('')
+const mostrarRecaudacionMes = ref(false)
 
-const seleccionarRol = (rol) => {
-  if (rol === 'admin') {
-    creds.value = { username: 'admin@gianni.com', password: 'admin123' }
-  } else {
-    creds.value = { username: 'ventas@gianni.com', password: 'ventas123' }
+const resumen = ref({
+  ganancia_diaria: 0,
+  ganancia_mensual: 0,
+  cantidad_ventas_hoy: 0,
+  cantidad_ventas_mes: 0,
+  productos_top: []
+})
+
+const alertas = ref([])
+const totalPrendas = ref(0)
+
+const toast = ref({ visible: false, message: '', type: 'success' })
+
+const usuario = computed(() => {
+  try {
+    return JSON.parse(localStorage.getItem('usuario_stock') || '{}')
+  } catch (e) {
+    return {}
+  }
+})
+
+const getAuthHeaders = () => {
+  const token = usuario.value?.token
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   }
 }
 
-const handleLogin = async () => {
-  error.value = ''
+const alertasCount = computed(() => alertas.value.length)
+
+const cargarDatosDashboard = async () => {
   cargando.value = true
-
+  errorCarga.value = ''
   try {
-    const formData = new URLSearchParams()
-    formData.append('username', creds.value.username)
-    formData.append('password', creds.value.password)
+    const headers = getAuthHeaders()
+    const [resResumen, resAlertas, resPrendas] = await Promise.all([
+      fetch(`${API_URL}/reportes/resumen`, { headers }),
+      fetch(`${API_URL}/prendas/alertas/reposicion`, { headers }),
+      fetch(`${API_URL}/prendas/`, { headers })
+    ])
 
-    const res = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: formData
-    })
-
-    if (res.ok) {
-      const data = await res.json()
-      const rolNormalized = (data.rol || '').toLowerCase()
-      const user = {
-        token: data.access_token,
-        rol: rolNormalized,
-        email: data.email,
-        nombre: data.nombre
-      }
-      localStorage.setItem('usuario_stock', JSON.stringify(user))
-
-      if (rolNormalized === 'admin' || rolNormalized === 'administrador') {
-        router.push('/dashboard')
-      } else {
-        router.push('/pos')
-      }
-    } else {
-      const errData = await res.json().catch(() => ({}))
-      error.value = errData.detail || 'Credenciales inválidas. Compruebe usuario y contraseña.'
+    if (resResumen.ok) resumen.value = await resResumen.json()
+    if (resAlertas.ok) alertas.value = await resAlertas.json()
+    if (resPrendas.ok) {
+      const listaPrendas = await resPrendas.json()
+      totalPrendas.value = listaPrendas.length
     }
   } catch (e) {
-    console.error('Error en login:', e)
-    error.value = 'No se pudo conectar con el servidor. Verifique que el backend esté activo.'
+    console.error('Error al cargar dashboard:', e)
+    errorCarga.value = 'No se pudo conectar con el servidor.'
   } finally {
     cargando.value = false
   }
 }
+
+const descargarPDF = (idPrenda) => {
+  window.open(`${API_URL}/prendas/${idPrenda}/pdf-codigos`, '_blank')
+}
+
+onMounted(() => {
+  cargarDatosDashboard()
+})
 </script>

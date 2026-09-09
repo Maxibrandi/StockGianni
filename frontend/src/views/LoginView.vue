@@ -136,7 +136,7 @@ import { useRouter } from 'vue-router'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 const router = useRouter()
 
-const creds = ref({ username: 'admin@gianni.com', password: 'admin123' })
+const creds = ref({ username: '', password: '' })
 const mostrarPassword = ref(false)
 const cargando = ref(false)
 const error = ref('')
