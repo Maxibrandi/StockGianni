@@ -1,3 +1,4 @@
+import os
 import asyncio
 from decimal import Decimal
 from sqlalchemy.future import select
@@ -17,22 +18,26 @@ async def seed_data():
 
     async with SessionLocal() as db:
         # 1. GENERAR / ACTUALIZAR USUARIOS SEMILLA
+        admin_password = os.getenv("ADMIN_PASSWORD", "cambiame_urgente_admin")
+
         res_admin = await db.execute(select(Usuario).where(Usuario.email == "admin@gianni.com"))
         admin = res_admin.scalar_one_or_none()
         if not admin:
             admin = Usuario(
                 nombre="Maximo Admin",
                 email="admin@gianni.com",
-                password_hash=get_password_hash("admin123"),
+                password_hash=get_password_hash(admin_password),
                 rol=RolUsuario.ADMINISTRADOR,
                 activo=True
             )
             db.add(admin)
             print("[SEED] Usuario Admin creado con exito.")
         else:
-            admin.password_hash = get_password_hash("admin123")
+            admin.password_hash = get_password_hash(admin_password)
             admin.rol = RolUsuario.ADMINISTRADOR
             admin.activo = True
+
+        vendedor_password = os.getenv("VENDEDOR_PASSWORD", "cambiame_urgente_ventas")
 
         res_vendedor = await db.execute(select(Usuario).where(Usuario.email == "ventas@gianni.com"))
         vendedor = res_vendedor.scalar_one_or_none()
@@ -40,14 +45,14 @@ async def seed_data():
             vendedor = Usuario(
                 nombre="Empleado Gianni",
                 email="ventas@gianni.com",
-                password_hash=get_password_hash("ventas123"),
+                password_hash=get_password_hash(vendedor_password),
                 rol=RolUsuario.VENDEDOR,
                 activo=True
             )
             db.add(vendedor)
             print("[SEED] Usuario Vendedor creado con exito.")
         else:
-            vendedor.password_hash = get_password_hash("ventas123")
+            vendedor.password_hash = get_password_hash(vendedor_password)
             vendedor.rol = RolUsuario.VENDEDOR
             vendedor.activo = True
 

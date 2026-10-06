@@ -7,9 +7,9 @@ services:
     container_name: inventario_db_container
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=inventario_user
-      - POSTGRES_PASSWORD=mi_password_secreto
-      - POSTGRES_DB=inventario_db
+      - POSTGRES_USER=${POSTGRES_USER:-inventario_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password_seguro_db}
+      - POSTGRES_DB=${POSTGRES_DB:-inventario_db}
     ports:
       - "5432:5432"
     volumes:
@@ -27,9 +27,9 @@ services:
     env_file:
       - .env
     environment:
-      - JWT_SECRET=8f9a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a
-      - JWT_ALGORITHM=HS256
-      - DATABASE_URL=postgresql+asyncpg://inventario_user:mi_password_secreto@db:5432/inventario_db
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://inventario_user:password_seguro_db@db:5432/inventario_db}
     volumes:
       - ./app:/code/app
     depends_on:

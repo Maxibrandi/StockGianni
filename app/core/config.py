@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
 
     # Atributos de Seguridad JWT
-    JWT_SECRET: str = "clave_secreta_super_segura_para_desarrollo_123"
+    JWT_SECRET: str
     ALGORITHM: str = "HS256"
     JWT_ALGORITHM: str = "HS256"  # 🌟 Agregado para resolver el AttributeError
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
